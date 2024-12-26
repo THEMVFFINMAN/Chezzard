@@ -1,0 +1,40 @@
+control black pieces as well 
+finish black castling
+
+tap and tap vs click and drag, do both
+undo redo
+doublestep white or black on next rank
+
+
+
+level of difficulty 
+
+
+
+NEGATIVE
+black can't castle
+blocked squares - generate a custom piece that can't move or be captured?\
+Short rook 
+Short Pawn
+Queen off color
+Dead square/ iron piece
+Slippery squares, have to click to reset piece
+
+
+PLAYER PLUS
+Standard fairy pieces
+Upgrade bishop/knight to rook
+extra pawn
+double move
+undo
+knight riders
+timed chess pieces that can go again after a cooldown
+move twice in a row
+
+
+BOARD CHANGES
+king of the hill
+small board
+longer board
+head of snake, convert other pieces to the king after checkmate
+Unroyal, take all pieces

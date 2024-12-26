@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://b10obfs1ip34g"]
+
+[ext_resource type="Script" path="res://Scripts/board.gd" id="1_p6hac"]
+
+[node name="Board" type="Node2D"]
+script = ExtResource("1_p6hac")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 300.0
+offset_top = 5.0
+offset_right = 900.0
+offset_bottom = 605.0
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="black_move_timer" type="Timer" parent="."]
+wait_time = 0.5
