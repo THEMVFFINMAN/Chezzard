@@ -10,6 +10,8 @@ enum Piece_Type_ENUMs {
 	ARCHBISHOP,
 	CAMEL,
 	GIRAFFE,
+	SHORTROOK,
+	SHORTBISHOP,
 	NONE
 }
 
@@ -25,15 +27,19 @@ func give_piece_name_from_piece_type(enum_value):
 	elif enum_value == Piece_Type_ENUMs.ROOK:
 		return "rook"
 	elif enum_value == Piece_Type_ENUMs.KING:
-		return "queen"
-	elif enum_value == Piece_Type_ENUMs.QUEEN:
 		return "king"
+	elif enum_value == Piece_Type_ENUMs.QUEEN:
+		return "queen"
 	elif enum_value == Piece_Type_ENUMs.ARCHBISHOP:
 		return "archbishop"
 	elif enum_value == Piece_Type_ENUMs.CAMEL:
 		return "camel"
 	elif enum_value == Piece_Type_ENUMs.GIRAFFE:
 		return "giraffe"
+	elif enum_value == Piece_Type_ENUMs.SHORTROOK:
+		return "shortrook"
+	elif enum_value == Piece_Type_ENUMs.SHORTBISHOP:
+		return "shortbishop"
 
 
 
@@ -56,6 +62,10 @@ func get_piece_type_enum_from_string(value):
 		return Piece_Type_ENUMs.CAMEL
 	elif value == "g" or value == "G":
 		return Piece_Type_ENUMs.GIRAFFE
+	elif value == "s" or value == "S":
+		return Piece_Type_ENUMs.SHORTROOK
+	elif value == "t" or value == "T":
+		return Piece_Type_ENUMs.SHORTBISHOP
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -64,7 +74,7 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta: float) -> void:
-	pass
+	pass 
 
 func get_fen_string_from_enum(value, white):
 	
@@ -79,15 +89,19 @@ func get_fen_string_from_enum(value, white):
 	elif value == Piece_Type_ENUMs.ROOK:
 		return_value =  "r"
 	elif value == Piece_Type_ENUMs.KING :
-		return_value =  "q"
-	elif value == Piece_Type_ENUMs.QUEEN:
 		return_value =  "k"
+	elif value == Piece_Type_ENUMs.QUEEN:
+		return_value =  "q"
 	elif value == Piece_Type_ENUMs.ARCHBISHOP:
 		return_value =  "a"
 	elif value == Piece_Type_ENUMs.CAMEL:
 		return_value = "c"
 	elif value == Piece_Type_ENUMs.GIRAFFE:
 		return_value = "g"
+	elif value == Piece_Type_ENUMs.SHORTROOK:
+		return_value = "s"
+	elif value == Piece_Type_ENUMs.SHORTBISHOP:
+		return_value = "t"
 	
 	if white:
 		return_value = return_value.capitalize()

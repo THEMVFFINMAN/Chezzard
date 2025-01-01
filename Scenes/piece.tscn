@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3 uid="uid://b0yrao32ew80q"]
+[gd_scene load_steps=27 format=3 uid="uid://b0yrao32ew80q"]
 
 [ext_resource type="Script" path="res://Scripts/piece.gd" id="1_b7235"]
 [ext_resource type="Texture2D" uid="uid://cll2rua4y4ycp" path="res://Assets/pieces.png" id="2_5yq8s"]
@@ -39,6 +39,14 @@ region = Rect2(64, 16, 16, 16)
 atlas = ExtResource("2_5yq8s")
 region = Rect2(48, 16, 16, 16)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_fh8dc"]
+atlas = ExtResource("2_5yq8s")
+region = Rect2(144, 16, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o44rk"]
+atlas = ExtResource("2_5yq8s")
+region = Rect2(160, 16, 16, 16)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_yh71w"]
 atlas = ExtResource("2_5yq8s")
 region = Rect2(112, 0, 16, 16)
@@ -74,6 +82,14 @@ region = Rect2(64, 0, 16, 16)
 [sub_resource type="AtlasTexture" id="AtlasTexture_ujscc"]
 atlas = ExtResource("2_5yq8s")
 region = Rect2(48, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jxbvq"]
+atlas = ExtResource("2_5yq8s")
+region = Rect2(144, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l12ng"]
+atlas = ExtResource("2_5yq8s")
+region = Rect2(160, 0, 16, 16)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_pm6vr"]
 animations = [{
@@ -151,6 +167,22 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_fh8dc")
+}],
+"loop": true,
+"name": &"black_shortbishop",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o44rk")
+}],
+"loop": true,
+"name": &"black_shortrook",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_yh71w")
 }],
 "loop": true,
@@ -220,6 +252,22 @@ animations = [{
 "loop": true,
 "name": &"white_rook",
 "speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jxbvq")
+}],
+"loop": true,
+"name": &"white_shortbishop",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l12ng")
+}],
+"loop": true,
+"name": &"white_shortrook",
+"speed": 5.0
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rw8xw"]
@@ -236,7 +284,7 @@ script = ExtResource("1_b7235")
 [node name="Sprite2D" type="AnimatedSprite2D" parent="."]
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_pm6vr")
-animation = &"black_queen"
+animation = &"white_shortrook"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_rw8xw")

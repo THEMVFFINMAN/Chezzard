@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3 uid="uid://1liqqedwp7ux"]
+
+[ext_resource type="Script" path="res://Scenes/board_auxiliary_container.gd" id="1_oiclw"]
+
+[node name="BoardAuxiliaryContainer" type="Node2D"]
+script = ExtResource("1_oiclw")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Undo" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "UNDO"
+
+[node name="VSeparator" type="VSeparator" parent="HBoxContainer"]
+layout_mode = 2
+
+[node name="Redo" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "REDO"
+
+[connection signal="button_down" from="HBoxContainer/Undo" to="." method="_on_undo_button_down"]
+[connection signal="button_down" from="HBoxContainer/Redo" to="." method="_on_redo_button_down"]

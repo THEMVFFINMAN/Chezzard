@@ -1,5 +1,5 @@
-control black pieces as well 
-finish black castling
+be able to drop a piece in the same place you picked it up without it closing down
+
 
 tap and tap vs click and drag, do both
 undo redo
@@ -30,6 +30,12 @@ undo
 knight riders
 timed chess pieces that can go again after a cooldown
 move twice in a row
+
+MONEY PIECES
+Silver double money
+gold triple money
+diamond quadruple money, chance to break
+blood money triple money but lose forever if you lose the piece
 
 
 BOARD CHANGES

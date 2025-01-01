@@ -3,7 +3,6 @@ extends Node
 var stockfish_stdio : FileAccess = null
 var stockfish_stderr : FileAccess = null
 var stockfish_thread : Thread = Thread.new()
-var stockfish_readtext_thread : Thread = Thread.new()
 var pid : int
 var stock_fish_string = ""
 
@@ -13,9 +12,9 @@ var board
 var response_buffer : String = ""
 var is_running : bool = false
 
-var load_variants_string : String = "setoption name VariantPath value C:\\Users\\joshu\\Downloads\\chezzard (3)\\chezzard\\Engine\\variants.ini"
+var load_variants_string : String = "setoption name VariantPath value C:\\Users\\JJ\\Documents\\Github\\Chezzard\\Engine\\variants.ini"
 var set_custom_variant_string : String = "setoption name UCI_Variant value custom"
-var start_position_string : String = "position startpos"
+var start_position_string : String = "position start"
 var start_game_string : String = "ucinewgame"
 var go_depth_string : String = "go depth 10"
 
@@ -25,6 +24,11 @@ var regex_moves_pattern = r"^[a-zA-Z]\d{1,2}[a-zA-Z]\d{1,2}: 1$"
 var legal_moves = []
 
 var thread_timer
+
+var board_size = Vector2.ZERO
+
+var computer_opponent = false
+var player_white = true
 
 
 # Called when the node enters the scene tree for the first time
@@ -50,11 +54,12 @@ func _notification(what):
 func start_stockfish_thread():
 	# Start the Stockfish process in a new thread
 	stockfish_thread.start(_run_stockfish)  # No need for 'self', just the function name
+	
 
 # This function runs in a separate thread
 func _run_stockfish():
 	var command = "cmd"   # Command to execute Stockfish
-	var args = ["/K", "C:\\Users\\joshu\\Downloads\\chezzard (3)\\chezzard\\Engine\\stockfish.exe"]  # No arguments passed in this example
+	var args = ["/K", "C:\\Users\\JJ\\Documents\\Github\\Chezzard\\Engine\\stockfish.exe"]  # No arguments passed in this example
 	
 	# Execute Stockfish with pipes for stdio and stderr
 	var result = OS.execute_with_pipe(command, args)
@@ -69,7 +74,7 @@ func _run_stockfish():
 	
 	is_running = true
 	print("Stockfish started and running.")
-	
+	send_to_stockfish("setoption name Debug Log File value debug.log")
 	send_to_stockfish(load_variants_string)
 	send_to_stockfish(set_custom_variant_string)
 	
@@ -87,15 +92,20 @@ func _run_stockfish():
 	timer.timeout.connect(perft)
 	timer.autostart = true
 	
+	
 	while(true):
 		read_stockfish()
 
 func read_stockfish():
 	if stockfish_stdio.is_open() and stockfish_stderr.get_error() == OK:
-		var chunk = stockfish_stdio.get_buffer(2048)		
+		var chunk = stockfish_stdio.get_buffer(2048)	
 		var output = str(chunk.get_string_from_utf8())
 	
 		call_deferred("go_outside_thread_read", output)
+		
+func go_outside_error_read(error_output):
+	print("test")
+	print(error_output)
 	
 func go_outside_thread_read(output):
 	if "check" in output and "Nodes searched: 0" not in output:
@@ -109,11 +119,17 @@ func go_outside_thread_read(output):
 		print("output    ", output)
 	
 	if "bestmove" in output:
-		thread_timer.start()
-		await thread_timer.timeout
-		board.call_deferred("play_black_move", output.split(" ")[1])
+		if computer_opponent and board.is_computer_turn():
+			
+			thread_timer.start()
+			await thread_timer.timeout
+			
+			var computer_move = board.get_array_of_individual_moves_from_fen_string(output.split(" ")[1])
+			board.call_deferred("move", computer_move[0], computer_move[1])
 		
 	if ": 1" in output:
+		
+		#print(output)
 		var multilines = output.split("\n")
 		for line in multilines:
 			line = line.replace("\r", "")
@@ -121,11 +137,10 @@ func go_outside_thread_read(output):
 			if regex.search(line):
 				if line not in legal_moves:
 					legal_moves.append(line)
-				
+
 				
 	if legal_moves.size() > 0:
-		board.call_deferred("add_legal_moves_to_white_pieces", legal_moves)
-		
+		board.call_deferred("add_legal_moves_to_pieces", legal_moves)
 	legal_moves = []
 			
 			

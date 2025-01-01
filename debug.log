@@ -1,0 +1,30 @@
+>> setoption name VariantPath value C:\Users\JJ\Documents\Github\Chezzard\Engine\variants.ini
+>> setoption name UCI_Variant value custom
+<< info string variant custom files 8 ranks 8 pocket 0 template fairy startpos rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/SNBQKBNS w KQkq - 0 1
+>> position startpos
+>> position fen rntqktnr/pppppppp/8/8/8/8/PPPPPPPP/SNTQKTNS
+>> ucinewgame
+>> go perft 1
+<< a2a3: 1
+<< b2b3: 1
+<< c2c3: 1
+<< d2d3: 1
+<< e2e3: 1
+<< f2f3: 1
+<< g2g3: 1
+<< h2h3: 1
+<< a2a4: 1
+<< b2b4: 1
+<< c2c4: 1
+<< d2d4: 1
+<< e2e4: 1
+<< f2f4: 1
+<< g2g4: 1
+<< h2h4: 1
+<< a1b3: 1
+<< f1e3: 1
+<< f1g3: 1
+<< 
+<< Nodes searched: 19
+<< 
+>> position fen rntqktnr/pppppppp/8/8/8/4P3/PPPP1PPP/SNTQKTNS b KQkq - 0 1

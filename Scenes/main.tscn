@@ -1,7 +1,12 @@
-[gd_scene load_steps=2 format=3 uid="uid://nl6cjl15kptf"]
+[gd_scene load_steps=4 format=3 uid="uid://nl6cjl15kptf"]
 
-[ext_resource type="PackedScene" uid="uid://wavje57qhqyv" path="res://Scenes/top_level.tscn" id="1_003hs"]
+[ext_resource type="PackedScene" uid="uid://wavje57qhqyv" path="res://Scenes/board_container.tscn" id="1_003hs"]
+[ext_resource type="Script" path="res://Scenes/main.gd" id="1_nuyci"]
+[ext_resource type="PackedScene" uid="uid://1liqqedwp7ux" path="res://Scenes/board_auxiliary_container.tscn" id="3_6yunt"]
 
 [node name="Main" type="Node"]
+script = ExtResource("1_nuyci")
 
-[node name="TopLevel" parent="." instance=ExtResource("1_003hs")]
+[node name="BoardContainer" parent="." instance=ExtResource("1_003hs")]
+
+[node name="BoardAuxiliaryContainer" parent="." instance=ExtResource("3_6yunt")]

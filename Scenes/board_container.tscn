@@ -1,12 +1,10 @@
 [gd_scene load_steps=3 format=3 uid="uid://wavje57qhqyv"]
 
-[ext_resource type="Script" path="res://Scripts/top_level.gd" id="1_ecolj"]
+[ext_resource type="Script" path="res://Scripts/board_container.gd" id="1_ecolj"]
 [ext_resource type="PackedScene" uid="uid://b10obfs1ip34g" path="res://Scenes/board.tscn" id="2_371tc"]
 
-[node name="TopLevel" type="Node2D"]
+[node name="BoardContainer" type="Node2D"]
 script = ExtResource("1_ecolj")
-
-[node name="Menu" type="Node2D" parent="."]
 
 [node name="Board" parent="." instance=ExtResource("2_371tc")]
 
