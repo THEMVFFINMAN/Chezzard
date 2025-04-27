@@ -3,7 +3,7 @@ extends Node
 var stockfish_stdio : FileAccess = null
 var stockfish_stderr : FileAccess = null
 var stockfish_thread : Thread = Thread.new()
-var pid : int
+var PID : int
 var stock_fish_string = ""
 
 var board
@@ -67,10 +67,12 @@ func _run_stockfish():
 	if result == null:
 		print("Error starting Stockfish process.")
 		return
+		
 	
 	stockfish_stdio = result["stdio"]
 	stockfish_stderr = result["stderr"]
-	pid = result["pid"]
+	PID = result["pid"]
+	print(PID)
 	
 	is_running = true
 	print("Stockfish started and running.")
@@ -108,6 +110,10 @@ func go_outside_error_read(error_output):
 	print(error_output)
 	
 func go_outside_thread_read(output):
+	if "C:\\Users" in output:
+		print("CRASHED")
+		return
+		
 	if "check" in output and "Nodes searched: 0" not in output:
 		print("\n\n\nCHECK\n\n\n")
 		
