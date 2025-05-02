@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://cvuqdogvn3ugr"]
+[gd_scene load_steps=6 format=3 uid="uid://smxf7pw7erur"]
 
 [ext_resource type="Script" uid="uid://d81aqmjcr5vt" path="res://Scripts/square.gd" id="1_nfqym"]
 [ext_resource type="Texture2D" uid="uid://mli70d6klt3r" path="res://Assets/premove.png" id="2_i55et"]
@@ -29,16 +29,26 @@ animations = [{
 script = ExtResource("1_nfqym")
 
 [node name="Label" type="Label" parent="."]
+visible = false
 z_index = 5
 offset_right = 40.0
 offset_bottom = 23.0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 
 [node name="Label2" type="Label" parent="."]
+visible = false
 z_index = 5
 offset_top = 12.0
 offset_right = 40.0
 offset_bottom = 35.0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+
+[node name="NumberLabel" type="Label" parent="."]
+z_index = 5
+offset_left = 58.0
+offset_top = 1.0
+offset_right = 98.0
+offset_bottom = 24.0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 
 [node name="ColorRect" type="ColorRect" parent="."]

@@ -31,7 +31,8 @@ var legal_moves = []
 
 func add_legal_move(legal_move):
 	if legal_move not in legal_moves:
-		legal_moves.append(legal_move)
+		if !board.check_wall(legal_move):
+			legal_moves.append(legal_move)
 	
 
 func initialize(is_white, piece_sprite, chess_location, _piece_type, _global_position):
@@ -102,8 +103,14 @@ func _process(_delta: float) -> void:
 		
 
 func _on_mouse_entered():
+	if piece_type == Globals.Piece_Type_ENUMs.WALL:
+		return
+		
 	has_mouse = true
 
 
 func _on_mouse_exited():
+	if piece_type == Globals.Piece_Type_ENUMs.WALL:
+		return
+		
 	has_mouse = false

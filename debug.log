@@ -1,8 +1,8 @@
 >> setoption name VariantPath value C:\Users\JJ\Documents\Github\Chezzard\Engine\variants.ini
 >> setoption name UCI_Variant value custom
-<< info string variant custom files 8 ranks 8 pocket 0 template fairy startpos rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/SNTQKTNS w KQkq - 0 1
+<< info string variant custom files 6 ranks 6 pocket 0 template fairy startpos rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 >> position startpos
->> position fen rntqktnr/pppppppp/8/8/8/8/PPPPPPPP/SNTQKTNS
+>> position fen rqkbnr/pppppp/6/6/ZZZZZZ/SULTMS
 >> ucinewgame
 >> go perft 1
 << a2a3: 1
@@ -11,20 +11,733 @@
 << d2d3: 1
 << e2e3: 1
 << f2f3: 1
-<< g2g3: 1
-<< h2h3: 1
-<< a2a4: 1
-<< b2b4: 1
-<< c2c4: 1
-<< d2d4: 1
-<< e2e4: 1
-<< f2f4: 1
-<< g2g4: 1
-<< h2h4: 1
-<< a1b3: 1
-<< f1e3: 1
-<< f1g3: 1
 << 
-<< Nodes searched: 19
+<< Nodes searched: 6
 << 
->> position fen rntqktnr/pppppppp/8/8/4P3/8/PPPP1PPP/SNTQKTNS b KQkq e3 0 1
+>> position fen rqkbnr/pppppp/6/5Z/ZZZZZ1/SULTMS b KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.04 -12.98 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.43 -0.09 | -0.43  0.09 |
+<< |    Knights |  0.00  0.00 |  0.16  0.03 | -0.16 -0.03 |
+<< |    Bishops |  0.00  0.00 |  0.03 -0.14 | -0.03  0.14 |
+<< |      Rooks |  0.00  0.00 | -0.26 -0.06 |  0.26  0.06 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.20 -0.27 | -0.76 -1.04 |  0.57  0.77 |
+<< |King safety |  0.00  0.00 |  0.75 -0.06 | -0.75  0.06 |
+<< |    Threats |  0.00  0.00 |  0.26  0.22 | -0.26 -0.22 |
+<< |     Passed |  0.00  0.00 |  0.80  2.45 | -0.80 -2.45 |
+<< |      Space |  0.19  0.00 |  0.39  0.00 | -0.20  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  6.49 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -12.77 -8.89 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -11.62 (white side)
+<< Final evaluation       -11.62 (white side)
+<< 
+>> position fen rqkbnr/pppppp/6/5Z/ZZZZZ1/SULTMS b KQkq - 0 1
+ego perft 1
+<< valuation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp 1276 nodes 8 nps 4000 tbhits 0 time 2 pv e5e4
+<< info depth 2 seldepth 2 multipv 1 score cp 1315 nodes 27 nps 13500 tbhits 0 time 2 pv a5a4 f1f2 a4a3
+<< info depth 3 seldepth 3 multipv 1 score cp 1338 nodes 49 nps 16333 tbhits 0 time 3 pv a5a4 f1f2 e5e4
+<< info depth 4 seldepth 4 multipv 1 score cp 1369 nodes 151 nps 37750 tbhits 0 time 4 pv a5a4 f1f2
+<< info depth 5 seldepth 5 multipv 1 score cp 1384 nodes 317 nps 63400 tbhits 0 time 5 pv a5a4 f1f2 b6a5 a2a3
+<< info depth 6 seldepth 7 multipv 1 score cp 1446 nodes 742 nps 82444 tbhits 0 time 9 pv a5a4 f1f2 c5c4 a2a3
+<< info depth 7 seldepth 9 multipv 1 score cp 1361 nodes 2580 nps 112173 tbhits 0 time 23 pv a5a4 a2a3 c5c4 f1f2 d6c5 c2c3
+<< info depth 8 seldepth 10 multipv 1 score cp 1339 nodes 4764 nps 110790 tbhits 0 time 43 pv c5c4 a2a3 f5f4 c2c3 e6c5 a1a2 a5a4 b1c2
+<< info depth 9 seldepth 12 multipv 1 score cp 1453 nodes 5587 nps 114020 tbhits 0 time 49 pv c5c4 a2a3 e6c5 a1a2
+<< info depth 10 seldepth 14 multipv 1 score cp 1323 nodes 21454 nps 118530 tbhits 0 time 181 pv c5c4 f3f4 e5e4 c2c3 d6f4 f1f4 e6f4 a2a3 e4e3
+<< bestmove c5c4 ponder f3f4
+<< a5a4: 1
+<< b5b4: 1
+<< c5c4: 1
+<< d5d4: 1
+<< e5e4: 1
+<< f5f4: 1
+<< e6d4: 1
+<< e6f4: 1
+<< 
+<< Nodes searched: 8
+<< 
+>> position fen rqkbnr/pppp1p/4p1/5Z/ZZZZZ1/SULTMS w KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.11 -12.91 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.57 -0.06 | -0.57  0.06 |
+<< |    Knights |  0.00  0.00 |  0.07  0.02 | -0.07 -0.02 |
+<< |    Bishops |  0.00  0.00 |  0.04 -0.11 | -0.04  0.11 |
+<< |      Rooks |  0.00  0.00 | -0.26 -0.06 |  0.26  0.06 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.34 -0.46 | -0.47 -0.79 |  0.13  0.33 |
+<< |King safety |  0.00  0.00 |  0.75 -0.06 | -0.75  0.06 |
+<< |    Threats |  0.00  0.00 |  0.87  0.49 | -0.87 -0.49 |
+<< |     Passed |  0.00  0.00 |  0.98  2.84 | -0.98 -2.84 |
+<< |      Space |  0.17  0.00 |  0.44  0.00 | -0.27  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  6.94 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -14.18 -9.51 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.77 (white side)
+<< Final evaluation       -12.77 (white side)
+<< 
+>> position fen rqkbnr/pppp1p/4p1/5Z/ZZZZZ1/SULTMS w KQkq - 0 1
+<< info string classical evaluation >> position fen rqkbnr/pppp1p/4p1/5Z/ZZZZZ1/SULTMS w KQkq - 0 1
+<< info string classical evaluation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp -1157 nodes 14 nps 7000 tbhits 0 time 2 pv f3e4 f5e4 f1f2
+<< info depth 2 seldepth 2 multipv 1 score cp -1169 nodes 28 nps 14000 tbhits 0 time 2 pv f3e4 f5f4
+<< info depth 3 seldepth 3 multipv 1 score cp -1157 nodes 60 nps 30000 tbhits 0 time 2 pv f3e4 f5e4 f1f2
+<< info depth 4 seldepth 4 multipv 1 score cp -1103 nodes 109 nps 36333 tbhits 0 time 3 pv f3e4 d5e4 f1f2
+<< info depth 5 seldepth 5 multipv 1 score cp -1292 nodes 311 nps 77750 tbhits 0 time 4 pv f3e4 d5e4 b2b3 f5f4 c2c3 e4e3
+<< info depth 6 seldepth 9 multipv 1 score cp -1123 nodes 436 nps 87200 tbhits 0 time 5 pv f3e4
+<< info depth 7 seldepth 7 multipv 1 score cp -1115 nodes 644 nps 92000 tbhits 0 time 7 pv f3e4 f5e4 f1f2 d6f4 f2f4 f6f4 b2b3
+<< info depth 8 seldepth 11 multipv 1 score cp -1081 nodes 1226 nps 122600 tbhits 0 time 10 pv f3e4 d5e4 b2b3 f5f4 c2c3
+<< info depth 9 seldepth 11 multipv 1 score cp -1123 nodes 5939 nps 131977 tbhits 0 time 45 pv f3e4 d5e4 c2c3 c6d5 d1c2 e6f4 c3c4 b5c4 f1f4 d6f4
+<< info depth 10 seldepth 16 multipv 1 score cp -1087 nodes 8734 nps 138634 tbhits 0 time 63 pv f3e4 d5e4 c2c3 c6d5 d1c2 c5c4
+<< bestmove f3e4 ponder d5e4
+<< f1f2: 1
+<< e1f2: 1
+<< a2a3: 1
+<< b2b3: 1
+<< c2c3: 1
+<< d2d3: 1
+<< e2e3: 1
+<< f3e4: 1
+<< f3f4: 1
+<< 
+<< Nodes searched: 9
+<< 
+>> position fen rqkbnr/pppp1p/4pZ/6/ZZZZZ1/SULTMS b KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.11 -12.91 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.57 -0.06 | -0.57  0.06 |
+<< |    Knights |  0.00  0.00 |  0.07  0.02 | -0.07 -0.02 |
+<< |    Bishops |  0.00  0.00 |  0.02 -0.18 | -0.02  0.18 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.38 -0.51 | -0.47 -0.79 |  0.10  0.28 |
+<< |King safety |  0.00  0.00 |  0.75 -0.06 | -0.75  0.06 |
+<< |    Threats |  0.03  0.03 |  0.40  0.24 | -0.37 -0.21 |
+<< |     Passed |  0.00  0.00 |  0.86  2.72 | -0.86 -2.72 |
+<< |      Space |  0.17  0.00 |  0.41  0.00 | -0.25  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  6.75 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -13.51 -9.25 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.23 (white side)
+<< Final evaluation       -12.23 (white side)
+<< 
+>> position fen rqkbnr/pppp1p/4pZ/6/ZZZZZ1/SULTMS b KQkq - 0 1
+>> go perft 1
+<< info depth 1 seldepth 1 multipv 1 score cp 1338 nodes 10 nps 5000 tbhits 0 time 2 pv d5d4
+<< info depth 2 seldepth 2 multipv 1 score cp 1325 nodes 23 nps 11500 tbhits 0 time 2 pv d5d4 e2e3
+<< info depth 3 seldepth 3 multipv 1 score cp 1369 nodes 41 nps 20500 tbhits 0 time 2 pv d5d4 e2e3 a5a4
+<< info depth 4 seldepth 4 multipv 1 score cp 1323 nodes 84 nps 42000 tbhits 0 time 2 pv d5d4 e2e3 a5a4 e3d4 c5d4
+<< info depth 5 seldepth 5 multipv 1 score cp 1323 nodes 146 nps 48666 tbhits 0 time 3 pv d5d4 e2e3 a5a4 e3d4 c5d4
+<< info depth 6 seldepth 9 multipv 1 score cp 1330 nodes 436 nps 87200 tbhits 0 time 5 pv d5d4 e2e3 a5a4 e3d4 c5d4 d2d3 b5b4 d3e4 f5e4
+<< info depth 7 seldepth 13 multipv 1 score cp 1353 nodes 743 nps 106142 tbhits 0 time 7 pv d5d4 e2e3 a5a4 a2a3 c5c4 e3d4
+<< info depth 8 seldepth 10 multipv 1 score cp 1424 nodes 1646 nps 117571 tbhits 0 time 14 pv b5b4 c2c3 b6b5 c3b4
+<< info depth 9 seldepth 14 multipv 1 score cp 1330 nodes 12403 nps 117009 tbhits 0 time 106 pv c5c4 a2a3 e4e3 f1f3 d6f4 f3f4 e6f4 d2d3 b5b4 d3c4
+<< info depth 10 seldepth 14 multipv 1 score cp 1286 nodes 32643 nps 120011 tbhits 0 time 272 pv c5c4 a2a3 b6d4 c2c3 d4c5 d1c2 d6f4 f1f4 e6f4 e2e3 f4e2 c1d1 a5a4 a1a2
+<< bestmove c5c4 ponder a2a3
+<< e4e3: 1
+<< a5a4: 1
+<< b5b4: 1
+<< c5c4: 1
+<< d5d4: 1
+<< e6d4: 1
+<< e6f4: 1
+<< d6f4: 1
+<< d6e5: 1
+<< 
+<< Nodes searched: 9
+<< 
+>> position fen rqkbnr/pppp1p/5Z/4p1/ZZZZZ1/SULTMS w KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.15 -12.83 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.29 -0.06 | -0.29  0.06 |
+<< |    Knights |  0.00  0.00 |  0.07  0.02 | -0.07 -0.02 |
+<< |    Bishops |  0.00  0.00 | -0.03 -0.38 |  0.03  0.38 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.48 -0.64 | -0.47 -0.79 | -0.00  0.15 |
+<< |King safety |  0.00  0.00 |  0.75 -0.06 | -0.75  0.06 |
+<< |    Threats |  0.37  0.21 |  0.43  0.27 | -0.07 -0.07 |
+<< |     Passed |  0.00  0.00 |  1.37  3.36 | -1.37 -3.36 |
+<< |      Space |  0.17  0.00 |  0.39  0.00 | -0.22  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  6.91 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -13.51 -9.46 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.31 (white side)
+<< Final evaluation       -12.31 (white side)
+<< 
+>> position fen rqkbnr/pppp1p/5Z/4p1/ZZZZZ1/SULTMS w KQkq - 0 1
+>> go perft 1
+<< info string classical evaluation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp -1240 nodes 24 nps 12000 tbhits 0 time 2 pv f1f3
+<< info depth 2 seldepth 2 multipv 1 score cp -1138 nodes 41 nps 20500 tbhits 0 time 2 pv f1f3 d5d4 d2e3
+<< info depth 3 seldepth 3 multipv 1 score cp -1138 nodes 61 nps 30500 tbhits 0 time 2 pv f1f3 d5d4 d2e3
+<< info depth 4 seldepth 4 multipv 1 score cp -1090 nodes 94 nps 31333 tbhits 0 time 3 pv f1f3 d5d4
+<< info depth 5 seldepth 5 multipv 1 score cp -1164 nodes 206 nps 68666 tbhits 0 time 3 pv f1f3 e3d2 e1d2 a5a4 e2e3
+<< info depth 6 seldepth 7 multipv 1 score cp -1200 nodes 601 nps 100166 tbhits 0 time 6 pv f1f3 e3d2 e1d2 c5c4 c2c3 a5a4 a2a3
+<< info depth 7 seldepth 11 multipv 1 score cp -1184 nodes 963 nps 107000 tbhits 0 time 9 pv f1f3 e3d2 e1d2 c5c4 c2c3 a5a4
+<< info depth 8 seldepth 10 multipv 1 score cp -1184 nodes 2305 nps 115250 tbhits 0 time 20 pv f1f3 b5b4 b2b3 e3d2 e1d2 b6b5 b1b2 d5d4
+<< info depth 9 seldepth 12 multipv 1 score cp -1164 nodes 4515 nps 107500 tbhits 0 time 42 pv f1f3 b5b4 b2b3 e3d2 e1d2 b6b5 a2a3 d5d4
+<< info depth 10 seldepth 13 multipv 1 score cp -1186 nodes 10108 nps 116183 tbhits 0 time 87 pv f1f3 a5a4 f3e3 e6f4 e3f3 b5b4 f3f4 d6f4
+<< bestmove f1f3 ponder a5a4
+<< f1f2: 1
+<< f1f3: 1
+<< e1f2: 1
+<< a2a3: 1
+<< b2b3: 1
+<< c2c3: 1
+<< d2d3: 1
+<< d2e3: 1
+<< 
+<< Nodes searched: 8
+<< 
+>> position fen rqkbnr/pppp1p/5Z/3Zp1/ZZZ1Z1/SULTMS b KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.15 -12.83 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.29 -0.06 | -0.29  0.06 |
+<< |    Knights |  0.00  0.00 |  0.07  0.02 | -0.07 -0.02 |
+<< |    Bishops |  0.00  0.00 | -0.03 -0.38 |  0.03  0.38 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.48 -0.64 | -0.47 -0.79 | -0.00  0.15 |
+<< |King safety |  0.00  0.00 |  0.75 -0.06 | -0.75  0.06 |
+<< |    Threats |  0.03  0.03 |  0.73  0.53 | -0.70 -0.50 |
+<< |     Passed |  0.00  0.00 |  1.30  3.29 | -1.30 -3.29 |
+<< |      Space |  0.17  0.00 |  0.39  0.00 | -0.22  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.06 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -14.08 -9.67 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.69 (white side)
+<< Final evaluation       -12.69 (white side)
+<< 
+>> position fen rqkbnr/pppp1p/5Z/3Zp1/ZZZ1Z1/SULTMS b KQkq - 0 1
+>> go perft 1
+<< info string classical evaluation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp 1376 nodes 8 nps 4000 tbhits 0 time 2 pv c5c4
+<< info depth 2 seldepth 2 multipv 1 score cp 1400 nodes 28 nps 14000 tbhits 0 time 2 pv d5d4 c2c3 e6f4
+<< info depth 3 seldepth 3 multipv 1 score cp 1461 nodes 44 nps 22000 tbhits 0 time 2 pv d5d4 c2c3 c5c4
+<< info depth 4 seldepth 4 multipv 1 score cp 1376 nodes 149 nps 49666 tbhits 0 time 3 pv a5a4 c2c3 a4a3 b2a3
+<< info depth 5 seldepth 5 multipv 1 score cp 1356 nodes 294 nps 58800 tbhits 0 time 5 pv a5a4 a2a3 d5d4 a1a2 b6a5
+<< info depth 6 seldepth 9 multipv 1 score cp 1379 nodes 913 nps 101444 tbhits 0 time 9 pv a5a4 a2a3 d5d4 f1f3 b6a5
+<< info depth 7 seldepth 9 multipv 1 score cp 1350 nodes 2116 nps 117555 tbhits 0 time 18 pv a5a4 c2c3 b6a5 a2a3 d6f4 f1f3 c6c6 b1c2
+<< info depth 8 seldepth 12 multipv 1 score cp 1298 nodes 9906 nps 128649 tbhits 0 time 77 pv a5a4 c2c3 d5d4 a2a3 b6a5 c3d4 e6d4 b1a2 a6b6 a1b1
+<< info depth 9 seldepth 13 multipv 1 score cp 1317 nodes 14451 nps 130189 tbhits 0 time 111 pv a5a4 c2c3 b6a5 a2a3 d5d4 c3d4 e6d4 b1a2
+<< info depth 10 seldepth 13 multipv 1 score cp 1284 nodes 22430 nps 131941 tbhits 0 time 170 pv a5a4 c2c3 b6a5 a2a3 d6f4 f1f4 e6f4 b1c2 a6b6 a1b1 b6a6 d3d4 c5c4
+<< bestmove a5a4 ponder c2c3
+<< a5a4: 1
+<< b5b4: 1
+<< c5c4: 1
+<< d5d4: 1
+<< e6d4: 1
+<< e6f4: 1
+<< d6f4: 1
+<< d6e5: 1
+<< 
+<< Nodes searched: 8
+<< 
+>> position fen rqkbnr/ppp2p/3p1Z/3Zp1/ZZZ1Z1/SULTMS w KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.13 -12.83 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.60  0.01 | -0.60 -0.01 |
+<< |    Knights |  0.00  0.00 | -0.08 -0.09 |  0.08  0.09 |
+<< |    Bishops |  0.00  0.00 | -0.18 -0.66 |  0.18  0.66 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.55 -0.75 | -0.67 -0.92 |  0.12  0.17 |
+<< |King safety |  0.00  0.00 |  0.48 -0.06 | -0.48  0.06 |
+<< |    Threats |  0.03  0.03 |  0.76  0.56 | -0.73 -0.53 |
+<< |     Passed |  0.00  0.00 |  1.41  3.61 | -1.41 -3.61 |
+<< |      Space |  0.12  0.00 |  0.44  0.00 | -0.32  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.06 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -13.93 -9.67 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.62 (white side)
+<< Final evaluation       -12.62 (white side)
+<< 
+>> position fen rqkbnr/ppp2p/3p1Z/3Zp1/ZZZ1Z1/SULTMS w KQkq - 0 1
+>> go perft 1
+<< info depth 1 seldepth 1 multipv 1 score cp -1284 nodes 15 nps 15000 tbhits 0 time 1 pv c2c3
+<< info depth 2 seldepth 2 multipv 1 score cp -1223 nodes 25 nps 12500 tbhits 0 time 2 pv c2c3 d4c3 b2c3
+<< info depth 3 seldepth 3 multipv 1 score cp -1223 nodes 39 nps 19500 tbhits 0 time 2 pv c2c3 d4c3 b2c3
+<< info depth 4 seldepth 4 multipv 1 score cp -1283 nodes 84 nps 42000 tbhits 0 time 2 pv c2c3 d4c3 b2c3 c5c4
+<< info depth 5 seldepth 5 multipv 1 score cp -1228 nodes 112 nps 37333 tbhits 0 time 3 pv c2c3 d4c3 b2c3 c5c4
+<< info depth 6 seldepth 6 multipv 1 score cp -1175 nodes 174 nps 58000 tbhits 0 time 3 pv c2c3 d4c3 b2c3 c5c4
+<< info depth 7 seldepth 8 multipv 1 score cp -1161 nodes 454 nps 75666 tbhits 0 time 6 pv c2c3 d4c3 b2c3 d6f4 c3c4
+<< info depth 8 seldepth 9 multipv 1 score cp -1238 nodes 1125 nps 112500 tbhits 0 time 10 pv c2c3 a5a4 a2a3 b6a5 c3d4 e6d4 b1a2 d4e6 c1c2
+<< info depth 9 seldepth 14 multipv 1 score cp -1246 nodes 2595 nps 123571 tbhits 0 time 21 pv c2c3 a5a4 a2a3 b6a5 c3d4 e6d4 b1a2 f6e6 a1b1 b5b4 a3b4 a5b4
+<< info depth 10 seldepth 16 multipv 1 score cp -1205 nodes 8798 nps 131313 tbhits 0 time 67 pv c2c3 a5a4 a2a3 c5c4 c3d4 e6d4 d3c4 b5c4 f1f3 b6a5
+<< bestmove c2c3 ponder a5a4
+<< f1f2: 1
+<< f1f3: 1
+<< e1d2: 1
+<< e1f2: 1
+<< a2a3: 1
+<< b2b3: 1
+<< c2c3: 1
+<< 
+<< Nodes searched: 7
+<< 
+>> position fen rqkbnr/ppp2p/3p1Z/2ZZp1/ZZ2Z1/SULTMS b KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.13 -12.83 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.60  0.01 | -0.60 -0.01 |
+<< |    Knights |  0.00  0.00 | -0.08 -0.09 |  0.08  0.09 |
+<< |    Bishops |  0.00  0.00 | -0.18 -0.66 |  0.18  0.66 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.55 -0.75 | -0.67 -0.92 |  0.12  0.17 |
+<< |King safety |  0.00  0.00 |  0.40 -0.06 | -0.40  0.06 |
+<< |    Threats |  0.03  0.03 |  1.93  1.30 | -1.89 -1.27 |
+<< |     Passed |  0.00  0.00 |  1.28  3.47 | -1.28 -3.47 |
+<< |      Space |  0.12  0.00 |  0.44  0.00 | -0.32  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.32 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -14.88 -10.02 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -13.38 (white side)
+<< Final evaluation       -13.38 (white side)
+<< 
+<< p<< ionfo sstriing cltassiical oevanlua tionf eneablend
+>> go perft 1
+<< info depth 1 seldepth 1 multipv 1 score cp 1205 nodes 9 nps 9000 tbhits 0 time 1 pv a5a4
+<< info depth 2 seldepth 2 multipv 1 score cp 1205 nodes 20 nps 20000 tbhits 0 time 1 pv a5a4 a2a3
+<< info depth 3 seldepth 3 multipv 1 score cp 1205 nodes 33 nps 33000 tbhits 0 time 1 pv a5a4 a2a3 c5c4
+<< info depth 4 seldepth 4 multipv 1 score cp 1205 nodes 51 nps 25500 tbhits 0 time 2 pv a5a4 a2a3 c5c4 c3d4
+<< info depth 5 seldepth 5 multipv 1 score cp 1205 nodes 75 nps 37500 tbhits 0 time 2 pv a5a4 a2a3 c5c4 c3d4 e6d4
+<< info depth 6 seldepth 7 multipv 1 score cp 1205 nodes 109 nps 54500 tbhits 0 time 2 pv a5a4 a2a3 c5c4 c3d4 e6d4 d3c4 b5c4
+<< info depth 7 seldepth 11 multipv 1 score cp 1283 nodes 261 nps 87000 tbhits 0 time 3 pv a5a4 c3d4 e6d4 a2a3
+<< info depth 8 seldepth 11 multipv 1 score cp 1215 nodes 554 nps 110800 tbhits 0 time 5 pv a5a4 a2a3 c5c4 c3d4 e6d4 d3c4 b5c4 f1f3 b6a5 f3e3 a5e1
+<< info depth 9 seldepth 15 multipv 1 score cp 1221 nodes 3105 nps 115000 tbhits 0 time 27 pv a5a4 a2a3 c5c4 c3d4 e6d4 d3c4 b5c4 f1f3
+<< info depth 10 seldepth 16 multipv 1 score cp 1223 nodes 12366 nps 130168 tbhits 0 time 95 pv a5a4 a2a3 b6a5 c3c4 a6b6 c4b5 a5b5 b1c2 b6a6 a1b1
+<< bestmove a5a4 ponder a2a3
+<< a5a4: 1
+<< b5b4: 1
+<< c5c4: 1
+<< d4c3: 1
+<< e6f4: 1
+<< d6f4: 1
+<< d6e5: 1
+<< c6d5: 1
+<< 
+<< Nodes searched: 8
+<< 
+>> position fen rqkbnr/pp3p/2pp1Z/2ZZp1/ZZ2Z1/SULTMS w KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -10.13 -12.74 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.94 -0.82 |
+<< |      Pawns |  0.00  0.00 |  0.66  0.02 | -0.66 -0.02 |
+<< |    Knights |  0.00  0.00 |  0.07  0.02 | -0.07 -0.02 |
+<< |    Bishops |  0.00  0.00 | -0.17 -0.62 |  0.17  0.62 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.75 -1.02 | -0.25 -0.46 | -0.51 -0.56 |
+<< |King safety |  0.00  0.00 |  0.14 -0.06 | -0.14  0.06 |
+<< |    Threats |  0.07  0.07 |  2.56  1.60 | -2.50 -1.53 |
+<< |     Passed |  0.00  0.00 |  1.46  3.86 | -1.46 -3.86 |
+<< |      Space |  0.12  0.00 |  0.49  0.00 | -0.37  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.93 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -16.29 -10.86 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -14.62 (white side)
+<< Final evaluation       -14.62 (white side)
+<< 
+>> pinfo sstriing tclaissicoal neval uatfion eenanbl dr
+>> q>> go perft 1
+<< info depth 1 seldepth 1 multipv 1 score cp -1192 nodes 19 nps 9500 tbhits 0 time 2 pv d3c4
+<< info depth 2 seldepth 2 multipv 1 score cp -1187 nodes 36 nps 18000 tbhits 0 time 2 pv d3c4 b6c5
+<< info depth 3 seldepth 3 multipv 1 score cp -1169 nodes 82 nps 41000 tbhits 0 time 2 pv d3c4 b5c4 c3d4 e6d4
+<< info depth 4 seldepth 4 multipv 1 score cp -1169 nodes 133 nps 44333 tbhits 0 time 3 pv d3c4 b5c4 c3d4 e6d4
+<< info depth 5 seldepth 5 multipv 1 score cp -1153 nodes 223 nps 74333 tbhits 0 time 3 pv d3c4 c6c5 c4b5 b6b5
+<< info depth 6 seldepth 8 multipv 1 score cp -1160 nodes 615 nps 102500 tbhits 0 time 6 pv d3c4 b5c4 b1c2 b6c5 c3d4 e6d4
+<< info depth 7 seldepth 10 multipv 1 score cp -1130 nodes 1106 nps 110600 tbhits 0 time 10 pv d3c4 b5c4 b1c2 a5a4 c3d4
+<< info depth 8 seldepth 11 multipv 1 score cp -1137 nodes 2469 nps 112227 tbhits 0 time 22 pv d3c4 b5c4 b1c2 c6d5 a2a3 a5a4 c3d4 e6d4 c2c3 f6e6
+<< info depth 9 seldepth 15 multipv 1 score cp -1142 nodes 4918 nps 111772 tbhits 0 time 44 pv d3c4 b5c4 b1c2 c6d5 a2a3 b6c5 c3d4 e6d4 c2c3 f6e6 a3a4 a6b6
+<< info depth 10 seldepth 16 multipv 1 score cp -1134 nodes 9337 nps 116712 tbhits 0 time 80 pv d3c4 b5c4 b1c2 c6d5 a2a3 b6c5 c3d4 c5d4 f1f3 a5a4 c2c3 d6f4
+<< bestmove d3c4 ponder b5c4
+<< f1f2: 1
+<< f1f3: 1
+<< d1c2: 1
+<< d1b3: 1
+<< d1a4: 1
+<< e1d2: 1
+<< e1f2: 1
+<< a2a3: 1
+<< b2b3: 1
+<< c3d4: 1
+<< d3c4: 1
+<< b1c2: 1
+<< c1c2: 1
+<< 
+<< Nodes searched: 13
+<< 
+>> position fen rqkbnr/pp3p/2pZ1Z/3Zp1/ZZ2Z1/SULTMS b KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -9.46 -11.72 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.69 -0.58 |
+<< |      Pawns |  0.00  0.00 |  0.32 -0.03 | -0.32  0.03 |
+<< |    Knights |  0.00  0.00 |  0.07  0.02 | -0.07 -0.02 |
+<< |    Bishops |  0.00  0.00 | -0.09 -0.27 |  0.09  0.27 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.75 -1.02 | -0.20 -0.27 | -0.55 -0.75 |
+<< |King safety |  0.00  0.00 |  0.02 -0.06 | -0.02  0.06 |
+<< |    Threats |  0.07  0.07 |  1.73  1.03 | -1.66 -0.97 |
+<< |     Passed |  0.00  0.00 |  1.32  3.22 | -1.32 -3.22 |
+<< |      Space |  0.17  0.00 |  0.31  0.00 | -0.14  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.09 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -13.84 -9.71 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.54 (white side)
+<< Final evaluation       -12.54 (white side)
+<< 
+>> position fen rqkbnr/pp3p/2pZ1Z/3Zp1/ZZ2Z1/SULTMS b KQkq - 0 1
+>> go perft 1
+<< info depth 1 seldepth 1 multipv 1 score cp 1353 nodes 16 nps 16000 tbhits 0 time 1 pv e6d4
+<< info depth 2 seldepth 2 multipv 1 score cp 1200 nodes 59 nps 29500 tbhits 0 time 2 pv b6d4 d3c4
+<< info depth 3 seldepth 3 multipv 1 score cp 1221 nodes 139 nps 69500 tbhits 0 time 2 pv a5a4 a2a3 e6d4
+<< info depth 4 seldepth 4 multipv 1 score cp 1161 nodes 362 nps 90500 tbhits 0 time 4 pv a5a4 d3c4 e6d4 c4b5 b6b5
+<< info depth 5 seldepth 5 multipv 1 score cp 1172 nodes 505 nps 101000 tbhits 0 time 5 pv c6d5 d3c4 b5c4 b1c2 e6d4
+<< info depth 6 seldepth 8 multipv 1 score cp 1190 nodes 1489 nps 114538 tbhits 0 time 13 pv e6d4 d3c4 b5c4 a2a3
+<< info depth 7 seldepth 9 multipv 1 score cp 1200 nodes 2623 nps 114043 tbhits 0 time 23 pv e6d4 d3c4 b5c4 a2a3 c6d5 f1f3
+<< info depth 8 seldepth 10 multipv 1 score cp 1207 nodes 4717 nps 109697 tbhits 0 time 43 pv e6d4 d3c4 b5c4 f1f3 f6e6 f3e3 e6e3 e1d2 e3e4 b1e4 f5e4
+<< info depth 9 seldepth 16 multipv 1 score cp 1221 nodes 6667 nps 113000 tbhits 0 time 59 pv e6d4 d3c4 b5c4 f1f3 f6e6 f3e3 d6f4 e1d2 f4e3 d2e3
+<< info depth 10 seldepth 14 multipv 1 score cp 1223 nodes 12689 nps 117490 tbhits 0 time 108 pv e6d4 d3c4 b5c4 a2a3 a5a4 a1a2 b6a5 b1a1 f6e6 c1b1 a6b6 b1c1
+<< bestmove e6d4 ponder d3c4
+<< c4c3: 1
+<< a5a4: 1
+<< b5b4: 1
+<< c4d3: 1
+<< e6d4: 1
+<< e6f4: 1
+<< e6c5: 1
+<< d6a3: 1
+<< d6b4: 1
+<< d6f4: 1
+<< d6c5: 1
+<< d6e5: 1
+<< b6d4: 1
+<< b6c5: 1
+<< c6d5: 1
+<< 
+<< Nodes searched: 15
+<< 
+>> position fen r1kbnr/ppq2p/2pZ1Z/3Zp1/ZZ2Z1/SULTMS w KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -9.52 -11.88 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.69 -0.58 |
+<< |      Pawns |  0.00  0.00 |  0.32 -0.03 | -0.32  0.03 |
+<< |    Knights |  0.00  0.00 | -0.08 -0.09 |  0.08  0.09 |
+<< |    Bishops |  0.00  0.00 | -0.09 -0.27 |  0.09  0.27 |
+<< |      Rooks |  0.00  0.00 | -0.31 -0.09 |  0.31  0.09 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.68 -0.91 |  0.08  0.16 | -0.75 -1.07 |
+<< |King safety |  0.00  0.00 |  0.02 -0.06 | -0.02  0.06 |
+<< |    Threats |  0.03  0.03 |  1.76  1.07 | -1.73 -1.03 |
+<< |     Passed |  0.00  0.00 |  1.49  3.39 | -1.49 -3.39 |
+<< |      Space |  0.17  0.00 |  0.31  0.00 | -0.14  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.36 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -14.19 -10.07 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.92 (white side)
+<< Final evaluation       -12.92 (white side)
+<< 
+>> position fen r1kbnr/ppq2p/2pZ1Z/3Zp1/ZZ2Z1/SULTMS w KQkq - 0 1
+>> go perft 1
+<< info string classical evaluation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp -653 nodes 29 nps 14500 tbhits 0 time 2 pv d4c5 e6c5
+<< info depth 2 seldepth 2 multipv 1 score cp -653 nodes 45 nps 22500 tbhits 0 time 2 pv d4c5 e6c5
+<< info depth 3 seldepth 3 multipv 1 score cp -392 nodes 76 nps 38000 tbhits 0 time 2 pv d4c5 e6c5 d3c4
+<< info depth 4 seldepth 4 multipv 1 score cp -384 nodes 138 nps 46000 tbhits 0 time 3 pv d4c5 e6c5 d3c4 b5c4
+<< info depth 5 seldepth 5 multipv 1 score cp -369 nodes 237 nps 79000 tbhits 0 time 3 pv d4c5 d6f4 d3c4 b5c4
+<< info depth 6 seldepth 8 multipv 1 score cp -329 nodes 622 nps 103666 tbhits 0 time 6 pv d4c5 e6c5 d3d4
+<< info depth 7 seldepth 9 multipv 1 score cp -392 nodes 1541 nps 128416 tbhits 0 time 12 pv d4c5 d6f4 d3c4 b5c4 b1c2 c6d5 f1f3 a5a4 c2a4
+<< info depth 8 seldepth 13 multipv 1 score cp -361 nodes 2449 nps 136055 tbhits 0 time 18 pv d4c5 d6f4 d3c4 b5c4 b1c2 c6d5 f1f3 d5c5
+<< info depth 9 seldepth 13 multipv 1 score cp -369 nodes 3691 nps 136703 tbhits 0 time 27 pv d4c5 c6c5 d3c4 b5c4 b1c2 e6d4 c2c3 f6e6 a2a3
+<< info depth 10 seldepth 13 multipv 1 score cp -332 nodes 6613 nps 140702 tbhits 0 time 47 pv d4c5 c6c5 d3c4 b5c4 b1c2 c5d5 c2c3 e6d4
+<< bestmove d4c5 ponder c6c5
+<< f1f2: 1
+<< f1f3: 1
+<< d1c2: 1
+<< d1b3: 1
+<< d1a4: 1
+<< e1d2: 1
+<< e1f2: 1
+<< a2a3: 1
+<< b2b3: 1
+<< d3c4: 1
+<< d4c5: 1
+<< d4d5: 1
+<< b1c2: 1
+<< c1c2: 1
+<< 
+<< Nodes searched: 14
+<< 
+>> position fen r1kbnr/ppqZ1p/2p2Z/3Zp1/ZZ2Z1/SULTMS b KQkq - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< info string classical evaluation enabled
+<< 
+<< Final evaluation: none (in check)
+>> position fen r1kbnr/ppqZ1p/2p2Z/3Zp1/ZZ2Z1/SULTMS b KQkq - 0 1
+<< info depth 1 seldepth 1 multipv 1 score cp 1353 nodes 3 nps 3000 tbhits 0 time 1 pv c5d5
+>> go perft 1
+<< info depth 2 seldepth 2 multipv 1 score cp 1515 nodes 23 nps 23000 tbhits 0 time 1 pv c6d5 d3c4 c5c4
+<< info depth 3 seldepth 3 multipv 1 score cp 1361 nodes 48 nps 24000 tbhits 0 time 2 pv c6d5 d1c2 a5a4
+<< info depth 4 seldepth 4 multipv 1 score cp 1168 nodes 235 nps 78333 tbhits 0 time 3 pv c5d5 d3c4 d5c5 b1c2
+<< info depth 5 seldepth 5 multipv 1 score cp 1223 nodes 389 nps 97250 tbhits 0 time 4 pv c6d5 d3c4 b5c4
+<< info depth 6 seldepth 7 multipv 1 score cp 1161 nodes 1088 nps 120888 tbhits 0 time 9 pv c6d5 d3c4 c5c4 b1c2 a5a4 c2c4 b5c4
+<< info depth 7 seldepth 11 multipv 1 score cp 1100 nodes 4940 nps 123500 tbhits 0 time 40 pv c6d5 d3c4 b5c4 b1c2 e6f4 c2c3 d6e5 f1f4
+<< info depth 8 seldepth 12 multipv 1 score cp 1176 nodes 5542 nps 120478 tbhits 0 time 46 pv c6d5 d3c4 b5c4 b1c2 c5d4
+<< info depth 9 seldepth 14 multipv 1 score cp 1157 nodes 14313 nps 127794 tbhits 0 time 112 pv c6d5 d3c4 c5c4 b1c2 c4c2 d1c2 e6d4 c2d3 a6c6 c1d1 a5a4 a2a3
+<< info depth 10 seldepth 16 multipv 1 score cp 1164 nodes 26701 nps 130248 tbhits 0 time 205 pv c6d5 d3c4 c5c4 b1c2 c4c2 d1c2 a6c6 c1d1 c6c2 e1f2 d6f4 f2e3 f4e3
+<< bestmove c6d5 ponder d3c4
+<< c5d5: 1
+<< c6d5: 1
+<< c6b6: 1
+<< 
+<< Nodes searched: 3
+<< 
+>> position fen rk1bnr/ppqZ1p/2p2Z/3Zp1/ZZ2Z1/SULTMS w KQ - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -9.95 -11.70 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.69 -0.58 |
+<< |      Pawns |  0.00  0.00 |  0.32 -0.03 | -0.32  0.03 |
+<< |    Knights |  0.00  0.00 | -0.12 -0.13 |  0.12  0.13 |
+<< |    Bishops |  0.00  0.00 | -0.12 -0.32 |  0.12  0.32 |
+<< |      Rooks |  0.00  0.00 | -0.58 -0.15 |  0.58  0.15 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.65 -0.88 | -0.16 -0.23 | -0.49 -0.65 |
+<< |King safety |  0.00  0.00 |  0.01 -0.06 | -0.01  0.06 |
+<< |    Threats |  0.07  0.07 |  1.80  1.10 | -1.73 -1.03 |
+<< |     Passed |  0.00  0.00 |  1.49  3.36 | -1.49 -3.36 |
+<< |      Space |  0.17  0.00 |  0.29  0.00 | -0.12  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  7.02 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -13.99 -9.62 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -12.69 (white side)
+<< Final evaluation       -12.69 (white side)
+<< 
+>> position fen rk1bnr/ppqZ1p/2p2Z/3Zp1/ZZ2Z1/SULTMS w KQ - 0 1
+>> go perft 1
+<< info string classical evaluation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp -1107 nodes 20 nps 20000 tbhits 0 time 1 pv d3c4
+<< info depth 2 seldepth 2 multipv 1 score cp -1100 nodes 36 nps 36000 tbhits 0 time 1 pv d3c4 c5c4
+<< info depth 3 seldepth 3 multipv 1 score cp -1100 nodes 78 nps 39000 tbhits 0 time 2 pv d3c4 c5c4 b1c2
+<< info depth 4 seldepth 4 multipv 1 score cp -1070 nodes 115 nps 57500 tbhits 0 time 2 pv d3c4 e6d4 b1d3
+<< info depth 5 seldepth 5 multipv 1 score cp -1029 nodes 178 nps 59333 tbhits 0 time 3 pv d3c4 c5c4 b1c2
+<< info depth 6 seldepth 7 multipv 1 score cp -996 nodes 397 nps 66166 tbhits 0 time 6 pv d3c4 e6f4 b1c2 d6e5
+<< info depth 7 seldepth 8 multipv 1 score cp -967 nodes 734 nps 91750 tbhits 0 time 8 pv d3c4 e6f4 b1c2 c5d4
+<< info depth 8 seldepth 11 multipv 1 score cp -984 nodes 1804 nps 112750 tbhits 0 time 16 pv d3c4 c5c4 b1c2 c4c2 d1c2 e6d4 c2d3 b6c5 d3b5 c5b5
+<< info depth 9 seldepth 14 multipv 1 score cp -1017 nodes 5441 nps 120911 tbhits 0 time 45 pv d3c4 c5c4 b1c2 c4c2 c1c2 e6f4 f1f3 f4d5 e1f2 f5f4 f2e3 d5e3
+<< info depth 10 seldepth 15 multipv 1 score cp -992 nodes 12400 nps 130526 tbhits 0 time 95 pv d3c4 e6d4 b1d3 a5a4 d3c3 b5c4 f1f3 d4f3 c3f6 f3e1
+<< bestmove d3c4 ponder e6d4
+<< f1f2: 1
+<< f1f3: 1
+<< d1c2: 1
+<< d1b3: 1
+<< d1a4: 1
+<< e1d2: 1
+<< e1f2: 1
+<< a2a3: 1
+<< b2b3: 1
+<< d3c4: 1
+<< d3d4: 1
+<< d5e6: 1
+<< b1c2: 1
+<< c1c2: 1
+<< 
+<< Nodes searched: 14
+<< 
+>> position fen rk1bZr/ppq2p/2p2Z/3Zp1/ZZ2Z1/SULTMS b KQ - 0 1
+>> go depth 10
+>> eval
+<< info string classical evaluation enabled
+<< 
+<<  Contributing terms for the classical eval:
+<< +------------+-------------+-------------+-------------+
+<< |    Term    |    White    |    Black    |    Total    |
+<< |            |   MG    EG  |   MG    EG  |   MG    EG  |
+<< +------------+-------------+-------------+-------------+
+<< |   Material |  ----  ---- |  ----  ---- | -6.68 -7.95 |
+<< |  Imbalance |  ----  ---- |  ----  ---- | -0.23 -0.22 |
+<< |      Pawns |  0.00  0.00 |  0.32 -0.03 | -0.32  0.03 |
+<< |    Knights |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |    Bishops |  0.00  0.00 | -0.12 -0.32 |  0.12  0.32 |
+<< |      Rooks |  0.00  0.00 | -0.58 -0.15 |  0.58  0.15 |
+<< |     Queens |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |   Mobility | -0.75 -1.02 | -0.04 -0.01 | -0.72 -1.00 |
+<< |King safety |  0.00  0.00 |  0.05 -0.06 | -0.05  0.06 |
+<< |    Threats |  0.03  0.03 |  1.40  0.86 | -1.37 -0.83 |
+<< |     Passed |  0.00  0.00 |  1.49  3.36 | -1.49 -3.36 |
+<< |      Space |  0.00  0.00 |  0.00  0.00 |  0.00  0.00 |
+<< |    Variant | -5.50 -5.25 | -5.50 -5.25 |  0.00  0.00 |
+<< |   Winnable |  ----  ---- |  ----  ---- |  0.00  5.41 |
+<< +------------+-------------+-------------+-------------+
+<< |      Total |  ----  ---- |  ----  ---- | -10.15 -7.40 |
+<< +------------+-------------+-------------+-------------+
+<< 
+<< Classical evaluation   -9.08 (white side)
+<< Final evaluation       -9.08 (white side)
+<< 
+>> position fen rk1bZr/ppq2p/2p2Z/3Zp1/ZZ2Z1/SULTMS b KQ - 0 1
+<< info >> position fen rk1bZr/ppq2p/2p2Z/3Zp1/ZZ2Z1/SULTMS b KQ - 0 1
+<< info string classical evaluation enabled
+<< info depth 1 seldepth 1 multipv 1 score cp 1423 nodes 14 nps 14000 tbhits 0 time 1 pv c4d3
+<< info depth 2 seldepth 2 multipv 1 score cp 1076 nodes 34 nps 34000 tbhits 0 time 1 pv c4d3 d1c2
+<< info depth 3 seldepth 3 multipv 1 score cp 1076 nodes 54 nps 54000 tbhits 0 time 1 pv c4d3 d1c2 d3e2
+<< info depth 4 seldepth 4 multipv 1 score cp 1076 nodes 86 nps 43000 tbhits 0 time 2 pv c4d3 d1c2 d3e2 f1f3
+<< info depth 5 seldepth 5 multipv 1 score cp 1076 nodes 127 nps 63500 tbhits 0 time 2 pv c4d3 d1c2 d3e2 f1f3 f6e6
+<< info depth 6 seldepth 9 multipv 1 score cp 1187 nodes 229 nps 76333 tbhits 0 time 3 pv c4d3 d1c2 d3e2 f1f3 c5b4
+<< info depth 7 seldepth 9 multipv 1 score cp 1077 nodes 850 nps 106250 tbhits 0 time 8 pv c4d3 d1c2 d3e2 f1f3 a5a4 a2a3 f6e6 a1a2 e6e4
+<< info depth 8 seldepth 13 multipv 1 score cp 1111 nodes 1002 nps 111333 tbhits 0 time 9 pv c4d3 d1c2 d3e2 f1f3 a5a4 a2a3
+<< info depth 9 seldepth 10 multipv 1 score cp 1977 nodes 1084 nps 108400 tbhits 0 time 10 pv c4d3 d1c2 d3e2 f1f3 a5a4
+<< info depth 10 seldepth 13 multipv 1 score cp 1123 nodes 2318 nps 128777 tbhits 0 time 18 pv c4d3 d1c2 d3e2 f1f3 a5a4 a2a3 f6e6 a1a2 c5c6 b1a1 b6a5 b2b3 c6f3 b3b4 a5b6 c2f5
+<< bestmove c4d3 ponder d1c2
+<< c4c3: 1
+<< a5a4: 1
+<< b5b4: 1
+<< c4d3: 1
+<< d6f4: 1
+<< d6e5: 1
+<< f6e6: 1
+<< c5a3: 1
+<< c5b4: 1
+<< c5d4: 1
+<< c5d5: 1
+<< c5e5: 1
+<< c5c6: 1
+<< b6c6: 1
+<< 
+<< Nodes searched: 14
+<< 

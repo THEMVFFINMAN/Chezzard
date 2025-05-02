@@ -11,12 +11,14 @@ var possible_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', '
 var holding_piece = false
 var held_piece = null
 
-var generated_fen_string = "rntqktnr/pppppppp/8/8/8/8/PPPPPPPP/SNTQKTNS"
+#var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
+
+var generated_fen_string = "rqkbnr/pppppp/6/6/ZZZZZZ/SULTMS"
 
 var board_array : Array
 
-var length = 8
-var width = 8
+var length = 6
+var width = 6
 
 var white_to_move = true
 var black_move_counter = 1
@@ -70,6 +72,13 @@ func _ready():
 	
 	regex = RegEx.new()
 	regex.compile(r"([a-zA-Z]\d+)")
+	
+func check_wall(move):
+	if get_square(move).piece_type == Globals.Piece_Type_ENUMs.WALL:
+		return true
+		
+	return false
+	
 	
 func add_legal_moves_to_pieces(legal_moves):
 	while legal_moves.size() > 0:
@@ -478,7 +487,6 @@ func send_move(previous_chess_position, chess_position):
 
 	var fen_string = generate_fen_string()
 	top_level.send_to_stockfish("position fen " + fen_string)
-	print("DEBUGGING HERE")
 	top_level.send_to_stockfish("go depth 10")
 	top_level.send_to_stockfish("eval")
 
@@ -616,6 +624,7 @@ func unfreeze_buttons():
 	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Undo").disabled = false
 	
 func generate_board_from_fen_string(fen_string):
+	
 	
 	var char_string = ""
 	for single_array in board_array:

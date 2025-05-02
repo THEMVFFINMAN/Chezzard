@@ -29,6 +29,8 @@ func get_center():
 func _process(_delta: float) -> void:	
 	
 	
+	get_node("NumberLabel").text = chess_position.to_upper()
+	
 	if (has_piece or (board.held_piece != null and board.held_piece.piece_type == Globals.Piece_Type_ENUMs.PAWN and board.en_passant_square == chess_position and board.en_passant_square[0]!= board.held_piece.chess_position[0])):
 		get_node("premove").modulate = Color(1, 0, 0)
 		get_node("premove").play("red")

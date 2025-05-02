@@ -1,14 +1,16 @@
-be able to drop a piece in the same place you picked it up without it closing down
-
-
+allow that special tap thing
 tap and tap vs click and drag, do both
-undo redo
-doublestep white or black on next rank
+
+promote short pawn
+Promote regular pawn lmfao 
 
 
+castle with special kings
 
-level of difficulty 
+Undo isn't perfect
+Need to code black to be able to play too
 
+level of difficulty
 
 
 NEGATIVE
@@ -25,7 +27,6 @@ PLAYER PLUS
 Standard fairy pieces
 Upgrade bishop/knight to rook
 extra pawn
-double move
 undo
 knight riders
 timed chess pieces that can go again after a cooldown
@@ -34,13 +35,17 @@ move twice in a row
 MONEY PIECES
 Silver double money
 gold triple money
-diamond quadruple money, chance to break
+glass quadruple money, chance to break
 blood money triple money but lose forever if you lose the piece
 
 
 BOARD CHANGES
 king of the hill
+horde
+3 check 
 small board
 longer board
 head of snake, convert other pieces to the king after checkmate
 Unroyal, take all pieces
+White double king
+
