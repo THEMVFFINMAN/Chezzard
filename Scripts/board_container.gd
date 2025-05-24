@@ -8,18 +8,20 @@ var stock_fish_string = ""
 
 var board
 
+var promotion = false
+
 # Commands and response buffer
 var response_buffer : String = ""
 var is_running : bool = false
 
-var load_variants_string : String = "setoption name VariantPath value C:\\Users\\JJ\\Documents\\Github\\Chezzard\\Engine\\variants.ini"
+var load_variants_string : String = "setoption name VariantPath value Engine\\variants.ini"
 var set_custom_variant_string : String = "setoption name UCI_Variant value custom"
 var start_position_string : String = "position start"
 var start_game_string : String = "ucinewgame"
 var go_depth_string : String = "go depth 10"
 
 var regex = RegEx.new()
-var regex_moves_pattern = r"^[a-zA-Z]\d{1,2}[a-zA-Z]\d{1,2}: 1$"
+var regex_moves_pattern = r"^[a-zA-Z]\d{1,2}[a-zA-Z]\d{1,2}[qrbn]?: 1$"
 
 var legal_moves = []
 
@@ -58,8 +60,10 @@ func start_stockfish_thread():
 
 # This function runs in a separate thread
 func _run_stockfish():
+	
+	
 	var command = "cmd"   # Command to execute Stockfish
-	var args = ["/K", "C:\\Users\\JJ\\Documents\\Github\\Chezzard\\Engine\\stockfish.exe"]  # No arguments passed in this example
+	var args = ["/K", "Engine\\stockfish.exe"]  # No arguments passed in this example
 	
 	# Execute Stockfish with pipes for stdio and stderr
 	var result = OS.execute_with_pipe(command, args)
@@ -145,7 +149,7 @@ func go_outside_thread_read(output):
 					legal_moves.append(line)
 
 				
-	if legal_moves.size() > 0:
+	if legal_moves.size() > 0 and !promotion:
 		board.call_deferred("add_legal_moves_to_pieces", legal_moves)
 	legal_moves = []
 			

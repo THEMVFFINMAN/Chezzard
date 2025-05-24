@@ -10,15 +10,21 @@ var place_holder_numbers = 0
 var possible_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm']
 var holding_piece = false
 var held_piece = null
+var last_held_piece = null
+
+var promotion_pieces = "qnbr"
+
+var letters_size = 0
+var numbers_size = 0
 
 #var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
 
-var generated_fen_string = "rqkbnr/pppppp/6/6/ZZZZZZ/SULTMS"
+var generated_fen_string = "rnbqkbnr/pppppppp/7P/8/8/8/PPPPPPPP/SMTULTMS"
 
 var board_array : Array
 
-var length = 6
-var width = 6
+var length = 8
+var width = 8
 
 var white_to_move = true
 var black_move_counter = 1
@@ -90,7 +96,9 @@ func add_legal_moves_to_pieces(legal_moves):
 		var piece = get_piece(legal_move_array[0])
 		
 		if piece != null:
-			piece.add_legal_move(legal_move_array[1])	
+			piece.add_legal_move(legal_move_array[1])
+			if legal_move_array.size() == 3:
+				piece.add_promotion_piece(legal_move_array[2])
 			
 
 
@@ -260,6 +268,18 @@ func move(previous_chess_position, chess_position):
 	print("DEBUGGING 2")
 	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	top_level.perft()
+	
+	if piece_to_move.select_promotion_piece:
+		freeze_buttons()
+		freeze_pieces()
+		get_node("Promotion_display").global_position = piece_to_move.global_position
+		
+		get_node("Promotion_display").display(promotion_pieces)
+		#var subtraction_amount = get_node("Promotion_display/MarginContainer/GridContainer").get_rect().size.x * promotion_pieces.length() + get_node("Promotion_display/MarginContainer/GridContainer").get_rect().size.x
+		#print(subtraction_amount)
+		#get_node("Promotion_display").global_position.x -= subtraction_amount
+		get_node("Promotion_display").show()
+		print(piece_to_move.promotion_piece)
 	
 
 			
@@ -478,6 +498,9 @@ func get_array_of_individual_moves_from_fen_string(fen_move):
 		result.append(matcher.get_string(0))
 		matcher = regex.search(fen_move, matcher.get_end())
 	
+	if fen_move[-1] in "abcdefghijklmnopqrstuvwxyz":
+		result.append(fen_move[-1])
+	
 	return result
 
 	
@@ -677,8 +700,8 @@ func make_piece_from_string(piece_char, chess_position):
 	return new_piece
 
 func initiate_board(letters, numbers): 
-	var letters_size = int(get_node("MarginContainer").get_rect().size.x / letters)
-	var numbers_size = int(get_node("MarginContainer").get_rect().size.y / numbers)
+	letters_size = int(get_node("MarginContainer").get_rect().size.x / letters)
+	numbers_size = int(get_node("MarginContainer").get_rect().size.y / numbers)
 	
 	get_parent().board_size = Vector2(letters_size * letters, numbers_size * numbers)
 	get_parent().get_parent().initiate_board_auxiliary()
@@ -719,3 +742,16 @@ func initiate_board(letters, numbers):
 			squares_dict[square.chess_position] = square
 			add_child(square)
 			board_array[i].append(square)
+
+func _on_button_toggled(toggled_on: bool) -> void:
+	if toggled_on:
+		
+		get_node("Promotion_display").global_position = Vector2(300, 300)
+		get_node("Promotion_display").display("qnbr")
+		get_node("Promotion_display").show()
+
+	else:
+		get_node("Promotion_display").hide()
+		
+		for child in get_node("Promotion_display/MarginContainer/GridContainer").get_children():
+			child.queue_free()

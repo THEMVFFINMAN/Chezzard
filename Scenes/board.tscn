@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://b10obfs1ip34g"]
+[gd_scene load_steps=3 format=3 uid="uid://b10obfs1ip34g"]
 
 [ext_resource type="Script" uid="uid://dquvg5w6wn4it" path="res://Scripts/board.gd" id="1_p6hac"]
+[ext_resource type="PackedScene" uid="uid://ca66kherevy6f" path="res://Scenes/promotion_display.tscn" id="2_2wvcj"]
 
 [node name="Board" type="Node2D"]
 script = ExtResource("1_p6hac")
@@ -19,3 +20,13 @@ size_flags_vertical = 3
 
 [node name="black_move_timer" type="Timer" parent="."]
 wait_time = 0.5
+
+[node name="Promotion_display" parent="." instance=ExtResource("2_2wvcj")]
+
+[node name="Button" type="CheckBox" parent="."]
+offset_left = 795.0
+offset_top = 331.0
+offset_right = 1097.0
+offset_bottom = 423.0
+
+[connection signal="toggled" from="Button" to="." method="_on_button_toggled"]

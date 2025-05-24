@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://ca66kherevy6f"]
+
+[ext_resource type="Script" uid="uid://0qq111hd6io2" path="res://Scenes/promotion_display.gd" id="1_sobth"]
+
+[node name="Promotion_display" type="Node2D"]
+z_index = 20
+script = ExtResource("1_sobth")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 5
+
+[node name="GridContainer" type="GridContainer" parent="MarginContainer"]
+layout_mode = 2

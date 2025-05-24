@@ -1,0 +1,9 @@
+>> setoption name VariantPath value C:\Users\JJ\Documents\Github\Chezzard\Engine\variants.ini
+>> setoption name VariantPath value C:\Users\JJ\Documents\Github\Chezzard\Engine\variants.ini
+>> setoption name VariantPath value C:\Users\JJ\Documents\Github\Chezzard\Engine\variants.ini
+>> setoption name VariantPath value C:\\Users\\joshu\\Downloads\\chezzard (3)\\chezzard\\Chezzard\\Engine\\variants.ini
+>> setoption name UCI_Variant value custom
+<< info string variant custom files 8 ranks 8 pocket 0 template fairy startpos rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+>> position startpos
+>> position fen rnbqkbnr/pppppppp/8/8/8/8/ZZZZZZZZ/SMTULTMS
+>> ucinewgame

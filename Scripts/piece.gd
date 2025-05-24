@@ -20,6 +20,9 @@ var dead_position = null
 
 var dead = false
 
+var promotion_piece = ""
+var select_promotion_piece = false
+
 func delete_self():
 	dead_position = global_position
 	dead = true
@@ -28,6 +31,12 @@ func delete_self():
 		get_parent().captured_pieces.append(self)
 	
 var legal_moves = []
+
+func add_promotion_piece(piece):
+	if piece not in promotion_piece:
+		promotion_piece += piece
+	select_promotion_piece = true
+	
 
 func add_legal_move(legal_move):
 	if legal_move not in legal_moves:
@@ -56,6 +65,7 @@ func _process(_delta: float) -> void:
 	get_node("Label").text = str(chess_position)
 	get_node("Label2").text = str(legal_moves)
 	
+	
 	if has_mouse and Input.is_action_pressed("left_click") and !picked_up:
 		
 		for move in legal_moves:
@@ -81,25 +91,10 @@ func _process(_delta: float) -> void:
 			z_index = 5
 			#board.unfreeze_white_pieces()
 			board.holding_piece = false
+			board.last_held_piece = board.held_piece
 			board.held_piece = null
-			get_node("CollisionShape2D").disabled = true
 			
-	if !picked_up and activated and !Input.is_action_pressed("left_click"):
-		activated = false
-		board.holding_piece = false
-		board.held_piece = null
-		
-		if board.white_to_move:
-			board.unfreeze_white_pieces()
-		else:
-			board.unfreeze_black_pieces()
-			
-		global_position = default_location 
-		
-		for move in legal_moves:
-			board.get_square(move).get_node("CollisionShape2D").disabled = true
-			board.get_square(move).get_node("premove").visible = false
-		
+			get_node("CollisionShape2D").disabled = true		
 		
 
 func _on_mouse_entered():

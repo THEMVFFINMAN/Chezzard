@@ -1,0 +1,69 @@
+[gd_scene load_steps=6 format=3 uid="uid://c360wnll480ad"]
+
+[ext_resource type="Script" uid="uid://dbf8cnjij473w" path="res://Scripts/square_promotion.gd" id="1_1x5g5"]
+[ext_resource type="Texture2D" uid="uid://mli70d6klt3r" path="res://Assets/premove.png" id="2_iujko"]
+[ext_resource type="Texture2D" uid="uid://cfiqj4pk7i3ro" path="res://Assets/premove_attack.png" id="3_mtv3g"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3ye1l"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_e12ki"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_iujko")
+}],
+"loop": true,
+"name": &"dot",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3_mtv3g")
+}],
+"loop": true,
+"name": &"red",
+"speed": 5.0
+}]
+
+[node name="square_promotion" type="Area2D" groups=["squares"]]
+script = ExtResource("1_1x5g5")
+
+[node name="Label" type="Label" parent="."]
+visible = false
+z_index = 5
+offset_right = 40.0
+offset_bottom = 23.0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+
+[node name="Label2" type="Label" parent="."]
+visible = false
+z_index = 5
+offset_top = 12.0
+offset_right = 40.0
+offset_bottom = 35.0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+
+[node name="NumberLabel" type="Label" parent="."]
+z_index = 5
+offset_left = 58.0
+offset_top = 1.0
+offset_right = 98.0
+offset_bottom = 24.0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+
+[node name="ColorRect" type="ColorRect" parent="."]
+mouse_filter = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_3ye1l")
+
+[node name="premove" type="AnimatedSprite2D" parent="."]
+visible = false
+z_index = 10
+z_as_relative = false
+scale = Vector2(2, 2)
+sprite_frames = SubResource("SpriteFrames_e12ki")
+animation = &"red"
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
