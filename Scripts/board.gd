@@ -4,6 +4,11 @@ extends Node
 @onready var piece_scene = preload("res://Scenes/piece.tscn")
 @onready var top_level = get_parent()
 
+# Emitted when the Back/Forward buttons should be enabled/disabled. The
+# BoardAuxiliaryContainer listens and toggles its own buttons, so this script
+# never reaches across scenes into them.
+signal nav_buttons_enabled(enabled)
+
 var started = false
 
 var place_holder_numbers = 0
@@ -66,6 +71,11 @@ var castle_move_string = ""
 
 var computer_opponent
 var player_white
+
+func _enter_tree():
+	# Registered early (before children are ready) so nested nodes can find the
+	# board via the "board" group instead of brittle get_parent() chains.
+	add_to_group("board")
 
 func _ready():
 	computer_opponent = get_parent().computer_opponent
@@ -684,12 +694,10 @@ func cancel_pickup(piece):
 		unfreeze_black_pieces()
 
 func freeze_buttons():
-	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Redo").disabled = true
-	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Undo").disabled = true
-	
+	nav_buttons_enabled.emit(false)
+
 func unfreeze_buttons():
-	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Redo").disabled = false
-	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Undo").disabled = false
+	nav_buttons_enabled.emit(true)
 	
 func generate_board_from_fen_string(fen_string):
 	
@@ -747,9 +755,6 @@ func make_piece_from_string(piece_char, chess_position):
 func initiate_board(letters, numbers): 
 	letters_size = int(get_node("MarginContainer").get_rect().size.x / letters)
 	numbers_size = int(get_node("MarginContainer").get_rect().size.y / numbers)
-	
-	get_parent().board_size = Vector2(letters_size * letters, numbers_size * numbers)
-	get_parent().get_parent().initiate_board_auxiliary()
 	
 	var white_checker = false
 	

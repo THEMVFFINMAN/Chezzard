@@ -6,7 +6,7 @@ var has_mouse
 var clicked = false
 var piece_type
 
-@onready var Board = get_parent().get_parent().get_parent().get_parent()
+@onready var Board = get_tree().get_first_node_in_group("board")
 
 func delete_self():
 	queue_free()
@@ -19,9 +19,7 @@ func _process(_delta: float) -> void:
 		if !clicked:
 			var promoted_piece_type = str(get_node("piece").piece_type)
 			
-			print("PIECE TYPE   " + promoted_piece_type)
-			print("LAST HELD PIECE   ", Board.last_held_piece)
-			
+					
 			var promoted_piece = Board.last_held_piece
 			promoted_piece.piece_type = promoted_piece_type
 			
