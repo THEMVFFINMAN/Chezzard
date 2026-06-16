@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+# Build the Fairy-Stockfish GDExtension for Godot 4.
+#
+# Layout expected (see README.md):
+#   native/
+#     godot-cpp/         <- git clone, branch matching your Godot version
+#     Fairy-Stockfish/   <- git clone of the engine (src/ inside)
+#     src/               <- the wrapper in this repo
+#     SConstruct         <- this file
+#
+# Usage examples:
+#   scons platform=windows target=template_debug
+#   scons platform=android target=template_release arch=arm64
+#   scons platform=ios     target=template_release arch=arm64
+import os
+
+env = SConscript("godot-cpp/SConstruct")
+
+# --- Fairy-Stockfish engine sources -----------------------------------------
+fsf = "Fairy-Stockfish/src"
+env.Append(CPPPATH=[fsf, "src"])
+
+# NOTE: these defines must match the build flags of the Fairy-Stockfish version
+# you cloned. Check Fairy-Stockfish/src/Makefile. LARGEBOARDS/PRECOMPUTED_MAGICS
+# match the common "largeboards" binaries; drop them if your variants are 8x8.
+# SIMD (USE_AVX2/USE_SSE/etc.) is intentionally left OFF for portable, correct
+# scalar NNUE across desktop + ARM mobile. Add them per-arch for desktop speed.
+env.Append(CPPDEFINES=["NDEBUG", "IS_64BIT", "LARGEBOARDS", "PRECOMPUTED_MAGICS"])
+
+fsf_sources = []
+for pattern in ["/*.cpp", "/nnue/*.cpp", "/nnue/features/*.cpp",
+                "/nnue/layers/*.cpp", "/syzygy/*.cpp"]:
+    fsf_sources += Glob(fsf + pattern)
+
+# Drop the language bindings and the original main() (recompiled below with a
+# renamed symbol so we can call it from the wrapper).
+skip = ("pyffish.cpp", "ffishjs.cpp", "main.cpp")
+fsf_sources = [s for s in fsf_sources if os.path.basename(str(s)) not in skip]
+
+# Recompile main.cpp as fairy_sf_main() via the classic -Dmain=<name> trick.
+main_obj = env.Object(
+    target=fsf + "/main_renamed",
+    source=fsf + "/main.cpp",
+    CPPDEFINES=env["CPPDEFINES"] + [("main", "fairy_sf_main")],
+)
+
+sources = Glob("src/*.cpp") + fsf_sources + [main_obj]
+
+# --- Library output (standard godot-cpp template layout) --------------------
+libname = "libfairy_engine"
+bindir = "../addons/fairy_engine/bin/"
+
+if env["platform"] == "macos":
+    library = env.SharedLibrary(
+        bindir + "{0}.{1}.{2}.framework/{0}.{1}.{2}".format(
+            libname, env["platform"], env["target"]),
+        source=sources)
+elif env["platform"] == "ios":
+    library = env.StaticLibrary(
+        bindir + "{}.{}.{}.a".format(libname, env["platform"], env["target"]),
+        source=sources)
+else:
+    library = env.SharedLibrary(
+        bindir + "{}{}{}".format(libname, env["suffix"], env["SHLIBSUFFIX"]),
+        source=sources)
+
+Default(library)
