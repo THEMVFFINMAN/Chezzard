@@ -17,7 +17,7 @@ var holding_piece = false
 var held_piece = null
 var last_held_piece = null
 
-var promotion_pieces = "qnbr"
+var pending_promotion = {}
 
 var letters_size = 0
 var numbers_size = 0
@@ -291,31 +291,94 @@ func move(previous_chess_position, chess_position):
 		get_square(move).get_node("CollisionShape2D").disabled = true
 		get_square(move).get_node("premove").visible = false
 		
-	send_move(previous_chess_position, chess_position)
-	
-		
-	for piece in get_tree().get_nodes_in_group("pieces"):
-		piece.legal_moves = []
-		
-	
-	top_level.send_to_stockfish("position fen " + generate_fen_string())
-	top_level.perft()
-	
-	if piece_to_move.select_promotion_piece:
-		freeze_buttons()
-		freeze_pieces()
-		get_node("Promotion_display").global_position = piece_to_move.global_position
-		
-		get_node("Promotion_display").display(promotion_pieces)
-		#var subtraction_amount = get_node("Promotion_display/MarginContainer/GridContainer").get_rect().size.x * promotion_pieces.length() + get_node("Promotion_display/MarginContainer/GridContainer").get_rect().size.x
-		#print(subtraction_amount)
-		#get_node("Promotion_display").global_position.x -= subtraction_amount
-		get_node("Promotion_display").show()
+	# A pawn reaching the last rank must promote. Defer the engine handoff until a
+	# piece is chosen — a pawn sitting on the last rank is an illegal position the
+	# engine would reject.
+	if piece_to_move.piece_type == Globals.Piece_Type_ENUMs.PAWN and _is_promotion_rank(chess_position, piece_to_move.white):
+		pending_promotion = {"pawn": piece_to_move, "prev": previous_chess_position, "cur": chess_position}
+		# Clear legal moves so no other piece can be picked up while choosing.
+		for p in get_tree().get_nodes_in_group("pieces"):
+			p.legal_moves = []
+		if not computer_opponent or piece_to_move.white == player_white:
+			_show_promotion_popup(piece_to_move)
+		else:
+			# Opponent (engine) promotion: auto-pick so we don't block on a popup.
+			complete_promotion(_default_promotion_choice(piece_to_move.white))
+		return
+
+	_finish_move(previous_chess_position, chess_position)
 	
 
 			
 			
 			
+func _finish_move(prev, cur):
+	# Engine handoff + legal-move refresh for the next turn. Split out of move()
+	# so promotion can run it AFTER a piece is chosen.
+	send_move(prev, cur)
+	for piece in get_tree().get_nodes_in_group("pieces"):
+		piece.legal_moves = []
+	top_level.send_to_stockfish("position fen " + generate_fen_string())
+	top_level.perft()
+
+func _is_promotion_rank(pos, is_white):
+	var rank = int(pos.substr(1, pos.length() - 1))
+	if is_white:
+		return rank == length
+	return rank == 1
+
+# A promoting pawn may become any distinct piece type already on its own side of
+# the board, except pawns and royal pieces (king / prince).
+func get_promotion_choices(is_white):
+	var excluded = [Globals.Piece_Type_ENUMs.PAWN, Globals.Piece_Type_ENUMs.SHORTPAWN,
+		Globals.Piece_Type_ENUMs.KING, Globals.Piece_Type_ENUMs.PRINCE]
+	var group = "white_pieces" if is_white else "black_pieces"
+	var choices = []
+	for p in get_tree().get_nodes_in_group(group):
+		if p.dead:
+			continue
+		if p.piece_type in excluded:
+			continue
+		if p.piece_type not in choices:
+			choices.append(p.piece_type)
+	return choices
+
+func _default_promotion_choice(is_white):
+	# Used for the engine's own promotions (no popup): prefer a queen, else the
+	# first available choice.
+	var choices = get_promotion_choices(is_white)
+	if Globals.Piece_Type_ENUMs.QUEEN in choices:
+		return Globals.Piece_Type_ENUMs.QUEEN
+	if choices.is_empty():
+		return Globals.Piece_Type_ENUMs.QUEEN
+	return choices[0]
+
+func _show_promotion_popup(pawn):
+	top_level.promotion = true
+	freeze_buttons()
+	var display_node = get_node("Promotion_display")
+	display_node.global_position = pawn.global_position
+	display_node.display(get_promotion_choices(pawn.white), pawn.white)
+	display_node.show()
+
+func complete_promotion(chosen_type):
+	var pawn = pending_promotion["pawn"]
+	pawn.piece_type = chosen_type
+	var prefix = "white_" if pawn.white else "black_"
+	pawn.get_node("Sprite2D").play(prefix + Globals.give_piece_name_from_piece_type(chosen_type))
+	get_square(pawn.chess_position).piece_type = chosen_type
+
+	var display_node = get_node("Promotion_display")
+	display_node.clear()
+	display_node.hide()
+	top_level.promotion = false
+	unfreeze_buttons()
+
+	var prev = pending_promotion["prev"]
+	var cur = pending_promotion["cur"]
+	pending_promotion = {}
+	_finish_move(prev, cur)
+
 func castle_rook(rook_position, new_rook_position):	
 	var rook_to_move = get_piece(rook_position)
 	var rook_to_move_square = get_square(new_rook_position)
