@@ -67,7 +67,7 @@ var captured_piece = false
 
 var squares_dict = {}
 
-var castle_move_string = ""
+var castle_info = {}
 
 var computer_opponent
 var player_white
@@ -117,6 +117,9 @@ func add_legal_moves_to_pieces(legal_moves):
 
 		
 func conduct_castling_checks(piece_to_move, previous_chess_position, chess_position):
+	# Reset for this move; only set below when a castle actually happens. (Resetting
+	# here, not after the move() append, keeps redo from leaving a stale value.)
+	castle_info = {}
 	if piece_to_move.piece_type == Globals.Piece_Type_ENUMs.ROOK:
 		if piece_to_move.white:
 			if previous_chess_position[0] == "a":
@@ -137,13 +140,13 @@ func conduct_castling_checks(piece_to_move, previous_chess_position, chess_posit
 				if chess_position[0] == "g" and !white_rook_kingside_moved:
 					white_castled = true
 					castle_rook("h1", "f1")					
-					castle_move_string = "wK"
+					castle_info = {"white": true, "kingside": true}
 					
 					
 				if chess_position[0] == "c" and !white_rook_queenside_moved:
 					white_castled = true
 					castle_rook("a1", "d1")
-					castle_move_string = "wQ"
+					castle_info = {"white": true, "kingside": false}
 					
 		else:
 			black_king_moved = true
@@ -152,12 +155,12 @@ func conduct_castling_checks(piece_to_move, previous_chess_position, chess_posit
 				if chess_position[0] == "g" and !black_rook_kingside_moved:
 					black_castled = true
 					castle_rook("h8", "f8")
-					castle_move_string = "bK"
+					castle_info = {"white": false, "kingside": true}
 
 				if chess_position[0] == "c" and !black_rook_queenside_moved:
 					black_castled = true
 					castle_rook("a8", "d8")
-					castle_move_string = "bQ"
+					castle_info = {"white": false, "kingside": false}
 					
 
 	if piece_to_move.piece_type == Globals.Piece_Type_ENUMs.ROOK:
@@ -266,11 +269,21 @@ func move(previous_chess_position, chess_position):
 		if !computer_opponent or !is_computer_turn():
 			unfreeze_white_pieces()
 	
-	moves.append([piece_to_move, previous_chess_square, get_square(chess_position), previous_chess_square.global_position + previous_chess_square.get_node("CollisionShape2D").shape.extents, \
-	piece_to_move.legal_moves, previous_chess_position, chess_position, captured_piece, castle_move_string, rook_king_movement, \
-	en_passant_undo_check, legal_snapshot])
+	moves.append({
+		"piece": piece_to_move,
+		"from_square": previous_chess_square,
+		"to_square": get_square(chess_position),
+		"from_global_position": previous_chess_square.global_position + previous_chess_square.get_node("CollisionShape2D").shape.extents,
+		"piece_legal_moves": piece_to_move.legal_moves,
+		"from_position": previous_chess_position,
+		"to_position": chess_position,
+		"captured": captured_piece,
+		"castle": castle_info,
+		"rook_king_flags": rook_king_movement,
+		"en_passant": en_passant_undo_check,
+		"legal_snapshot": legal_snapshot,
+	})
 
-	castle_move_string = ""
 	captured_piece = false
 	set_previous_square(previous_chess_position)
 	
@@ -339,14 +352,14 @@ func redo_individual_move():
 	if redo_moves.size() == 0:
 		undo_done()
 		return
-	var redo_array = redo_moves.pop_back()
-	moves.append(redo_array)
+	var record = redo_moves.pop_back()
+	moves.append(record)
 	
 
-	var redo_piece = redo_array[0]
-	var previous_square = redo_array[1]
-	var current_square = redo_array[2]
-	var previous_global_position = redo_array[3]
+	var redo_piece = record["piece"]
+	var previous_square = record["from_square"]
+	var current_square = record["to_square"]
+	var previous_global_position = record["from_global_position"]
 	
 	previous_square.has_piece = false
 	previous_square.piece_type = Globals.Piece_Type_ENUMs.NONE
@@ -380,7 +393,7 @@ func redo_individual_move():
 	
 	
 	
-	redo_piece.legal_moves = redo_array[4]
+	redo_piece.legal_moves = record["piece_legal_moves"]
 	
 	redo_steps_remaining -= 1
 
@@ -407,18 +420,18 @@ func undo_individual_move():
 		undo_finalize()
 		return
 
-	var undo_array = moves.pop_back()
-	redo_moves.append(undo_array)
+	var record = moves.pop_back()
+	redo_moves.append(record)
 	
 
-	var undo_piece = undo_array[0]
-	var previous_square = undo_array[1]
-	var current_square = undo_array[2]
-	var previous_global_position = undo_array[3]
+	var undo_piece = record["piece"]
+	var previous_square = record["from_square"]
+	var current_square = record["to_square"]
+	var previous_global_position = record["from_global_position"]
 	
 	current_square.has_piece = false
 	
-	if undo_array[7]:
+	if record["captured"]:
 		if captured_pieces.size() > 0:
 			var captured_piece = captured_pieces.pop_back()
 			
@@ -431,41 +444,44 @@ func undo_individual_move():
 	
 	previous_square.piece_type = undo_piece.piece_type
 	
-	if "w" in undo_array[8]:
-		if "Q" in undo_array[8]:
-			undo_castle("a1", "d1")
+	var castle = record["castle"]
+	if not castle.is_empty():
+		if castle["white"]:
+			if castle["kingside"]:
+				undo_castle("h1", "f1")
+			else:
+				undo_castle("a1", "d1")
 		else:
-			undo_castle("h1", "f1")
-			
-	if "b" in undo_array[8]:
-		if "Q" in undo_array[8]:
-			undo_castle("a8", "d8")
-		else:
-			undo_castle("h8", "f8")
+			if castle["kingside"]:
+				undo_castle("h8", "f8")
+			else:
+				undo_castle("a8", "d8")
 			
 			
+			
+	var flags = record["rook_king_flags"]
 	if undo_piece.white:
-		white_rook_kingside_moved = undo_array[9][0]
-		white_rook_queenside_moved = undo_array[9][1]
-		white_king_moved = undo_array[9][2]
+		white_rook_kingside_moved = flags[0]
+		white_rook_queenside_moved = flags[1]
+		white_king_moved = flags[2]
 	else:
-		black_rook_kingside_moved = undo_array[9][0]
-		black_rook_queenside_moved = undo_array[9][1]
-		black_king_moved = undo_array[9][2]
+		black_rook_kingside_moved = flags[0]
+		black_rook_queenside_moved = flags[1]
+		black_king_moved = flags[2]
 	
 	
 	previous_square.has_piece = true
 	previous_square.white = undo_piece.white
-	undo_piece.legal_moves = undo_array[4]
-	undo_piece.chess_position = undo_array[5]
-	
-	if "-" not in undo_array[10]:
-		en_passant_square = undo_array[10]
+	undo_piece.legal_moves = record["piece_legal_moves"]
+	undo_piece.chess_position = record["from_position"]
+
+	if "-" not in record["en_passant"]:
+		en_passant_square = record["en_passant"]
 	
 	# The last step's snapshot is the one undo_finalize applies. Stop after the
 	# requested number of plies (or early if the history runs out) — colour no
 	# longer decides when to stop.
-	pending_legal_snapshot = undo_array[11]
+	pending_legal_snapshot = record["legal_snapshot"]
 	undo_steps_remaining -= 1
 
 	var tween = get_tree().create_tween()
