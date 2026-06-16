@@ -24,7 +24,7 @@ var numbers_size = 0
 
 #var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
 
-var generated_fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/SMTULTMS"
+var generated_fen_string = "rnbqkbnr/pppppppp/7P/8/8/8/ZZZZZZZZ/SMTULTMS"
 
 var board_array : Array
 
