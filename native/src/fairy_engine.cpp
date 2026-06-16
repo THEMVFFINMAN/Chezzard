@@ -54,7 +54,6 @@ public:
 // ---------------------------------------------------------------------------
 class FairyOutputBuf : public std::streambuf {
 	godot::FairyEngine *owner;
-	std::string line;
 
 public:
 	explicit FairyOutputBuf(godot::FairyEngine *o) :
@@ -62,6 +61,11 @@ public:
 
 protected:
 	int overflow(int c) override {
+		// Per-thread line accumulation: the engine's search threads can write to
+		// std::cout concurrently, so each thread builds its own line and only
+		// hands a complete line to the (mutex-guarded) output queue. A single
+		// shared buffer would let concurrent writers corrupt or interleave a line.
+		thread_local std::string line;
 		if (c == traits_type::eof()) {
 			return c;
 		}
