@@ -25,7 +25,7 @@ env.Append(CPPPATH=[fsf, "src"])
 # match the common "largeboards" binaries; drop them if your variants are 8x8.
 # SIMD (USE_AVX2/USE_SSE/etc.) is intentionally left OFF for portable, correct
 # scalar NNUE across desktop + ARM mobile. Add them per-arch for desktop speed.
-env.Append(CPPDEFINES=["NDEBUG", "IS_64BIT", "LARGEBOARDS", "PRECOMPUTED_MAGICS"])
+env.Append(CPPDEFINES=["NDEBUG", "LARGEBOARDS", "PRECOMPUTED_MAGICS"])
 
 fsf_sources = []
 for pattern in ["/*.cpp", "/nnue/*.cpp", "/nnue/features/*.cpp",
@@ -41,7 +41,7 @@ fsf_sources = [s for s in fsf_sources if os.path.basename(str(s)) not in skip]
 main_obj = env.Object(
     target=fsf + "/main_renamed",
     source=fsf + "/main.cpp",
-    CPPDEFINES=env["CPPDEFINES"] + [("main", "fairy_sf_main")],
+    CPPDEFINES=list(env["CPPDEFINES"]) + [("main", "fairy_sf_main")],
 )
 
 sources = Glob("src/*.cpp") + fsf_sources + [main_obj]

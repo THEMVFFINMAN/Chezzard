@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
 
 env:
-  # Must match your Godot version (project.godot config/features).
-  GODOT_CPP_BRANCH: "4.6"
+  # godot-cpp's newest branch is 4.5; a 4.5 extension loads in Godot 4.6 too.
+  GODOT_CPP_BRANCH: "4.5"
 
 jobs:
   build:

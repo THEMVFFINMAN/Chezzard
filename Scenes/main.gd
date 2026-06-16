@@ -12,5 +12,8 @@ func _process(_delta: float) -> void:
 
 
 func initiate_board_auxiliary():
-	var board_size = get_node("BoardContainer").board_size
-	get_node("BoardAuxiliaryContainer/HBoxContainer").global_position = Vector2(board_size.x/2 - 50, board_size.y + 50)
+	# The Back/Forward buttons are now positioned by the CanvasLayer anchors in
+	# board_auxiliary_container.tscn (pinned to the top-right of the screen).
+	# The old board_size-based global_position pushed them off-screen, so it's
+	# intentionally removed.
+	pass

@@ -1,6 +1,6 @@
 [configuration]
 entry_symbol = "fairy_engine_library_init"
-compatibility_minimum = "4.6"
+compatibility_minimum = "4.5"
 
 [libraries]
 windows.debug.x86_64 = "res://addons/fairy_engine/bin/libfairy_engine.windows.template_debug.x86_64.dll"

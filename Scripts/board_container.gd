@@ -69,11 +69,11 @@ func _init_engine():
 	send_to_stockfish(start_game_string)
 
 	var timer = Timer.new()
-	add_child(timer)
 	timer.wait_time = .2
 	timer.one_shot = true
 	timer.timeout.connect(perft)
-	timer.autostart = true
+	add_child(timer)
+	timer.start()
 
 
 # Copy the bundled variants.ini to a real filesystem path so the native engine

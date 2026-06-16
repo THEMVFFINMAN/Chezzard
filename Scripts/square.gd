@@ -15,6 +15,9 @@ func _ready():
 	get_node("premove").modulate = Color(0, 0, 0, 1)
 	
 	board = get_parent()
+	# Hide leftover debug overlays.
+	get_node("Label").visible = false
+	get_node("Label2").visible = false
 
 func remove_piece():
 	piece_type = Globals.Piece_Type_ENUMs.NONE
@@ -46,8 +49,6 @@ func _process(_delta: float) -> void:
 		board.held_piece.activated = false
 	
 		
-	get_node("Label").text = str(piece_type)
-	get_node("Label2").text = str(has_piece)
 
 
 func _on_mouse_entered() -> void:
