@@ -296,7 +296,7 @@ func move(previous_chess_position, chess_position):
 	# A pawn reaching the last rank must promote. Defer the engine handoff until a
 	# piece is chosen — a pawn sitting on the last rank is an illegal position the
 	# engine would reject.
-	if piece_to_move.piece_type == Globals.Piece_Type_ENUMs.PAWN and _is_promotion_rank(chess_position, piece_to_move.white):
+	if (piece_to_move.piece_type == Globals.Piece_Type_ENUMs.PAWN or piece_to_move.piece_type == Globals.Piece_Type_ENUMs.SHORTPAWN) and _is_promotion_rank(chess_position, piece_to_move.white):
 		pending_promotion = {"pawn": piece_to_move, "prev": previous_chess_position, "cur": chess_position, "record": record}
 		# Clear legal moves so no other piece can be picked up while choosing.
 		for p in get_tree().get_nodes_in_group("pieces"):
@@ -365,6 +365,7 @@ func _show_promotion_popup(pawn):
 
 func complete_promotion(chosen_type):
 	var pawn = pending_promotion["pawn"]
+	pending_promotion["record"]["promoted_from"] = pawn.piece_type
 	pawn.piece_type = chosen_type
 	pending_promotion["record"]["promoted_to"] = chosen_type
 	var prefix = "white_" if pawn.white else "black_"
@@ -506,9 +507,10 @@ func undo_individual_move():
 
 	# Undo a promotion: turn the piece back into a pawn before it returns home.
 	if record.get("promoted_to", null) != null:
-		undo_piece.piece_type = Globals.Piece_Type_ENUMs.PAWN
+		var original_type = record.get("promoted_from", Globals.Piece_Type_ENUMs.PAWN)
+		undo_piece.piece_type = original_type
 		var pawn_prefix = "white_" if undo_piece.white else "black_"
-		undo_piece.get_node("Sprite2D").play(pawn_prefix + Globals.give_piece_name_from_piece_type(Globals.Piece_Type_ENUMs.PAWN))
+		undo_piece.get_node("Sprite2D").play(pawn_prefix + Globals.give_piece_name_from_piece_type(original_type))
 
 	if record["captured"]:
 		if captured_pieces.size() > 0:
