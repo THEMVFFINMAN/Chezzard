@@ -30,7 +30,7 @@
 #>
 param(
     [string]$Ref = "",
-    [string]$GodotCppBranch = "4.6",
+    [string]$GodotCppBranch = "4.5",
     [switch]$FetchNet
 )
 

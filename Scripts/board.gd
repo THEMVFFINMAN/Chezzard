@@ -7,7 +7,7 @@ extends Node
 var started = false
 
 var place_holder_numbers = 0
-var possible_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm']
+var possible_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 var holding_piece = false
 var held_piece = null
 var last_held_piece = null
@@ -19,7 +19,7 @@ var numbers_size = 0
 
 #var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
 
-var generated_fen_string = "rnbqkbnr/pppppppp/7P/8/8/8/PPPPPPPP/SMTULTMS"
+var generated_fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/SMTULTMS"
 
 var board_array : Array
 
@@ -52,6 +52,9 @@ var black_rook_kingside_moved = false
 
 var moves = []
 var redo_moves = []
+var pending_legal_snapshot = {}
+var undo_steps_remaining = 0
+var redo_steps_remaining = 0
 
 
 var captured_pieces = []
@@ -196,6 +199,13 @@ func is_computer_turn():
 		
 func move(previous_chess_position, chess_position):
 	redo_moves.clear()
+
+	# Snapshot every piece's legal moves for THIS position before anything
+	# changes. On undo we reload this exact set instead of re-asking the engine
+	# (the recompute could desync the position and show impossible moves).
+	var legal_snapshot = {}
+	for snap_piece in get_tree().get_nodes_in_group("pieces"):
+		legal_snapshot[snap_piece.chess_position] = snap_piece.legal_moves.duplicate()
 	
 	var piece_to_move
 	if held_piece != null:
@@ -248,7 +258,7 @@ func move(previous_chess_position, chess_position):
 	
 	moves.append([piece_to_move, previous_chess_square, get_square(chess_position), previous_chess_square.global_position + previous_chess_square.get_node("CollisionShape2D").shape.extents, \
 	piece_to_move.legal_moves, previous_chess_position, chess_position, captured_piece, castle_move_string, rook_king_movement, \
-	en_passant_undo_check])
+	en_passant_undo_check, legal_snapshot])
 
 	castle_move_string = ""
 	captured_piece = false
@@ -265,7 +275,6 @@ func move(previous_chess_position, chess_position):
 		piece.legal_moves = []
 		
 	
-	print("DEBUGGING 2")
 	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	top_level.perft()
 	
@@ -279,7 +288,6 @@ func move(previous_chess_position, chess_position):
 		#print(subtraction_amount)
 		#get_node("Promotion_display").global_position.x -= subtraction_amount
 		get_node("Promotion_display").show()
-		print(piece_to_move.promotion_piece)
 	
 
 			
@@ -296,8 +304,6 @@ func castle_rook(rook_position, new_rook_position):
 					
 	var tween = get_tree().create_tween()
 	tween.tween_property(rook_to_move, "global_position", rook_to_move_square.global_position + rook_to_move_square.get_node("CollisionShape2D").shape.extents, .05)
-	print("ROOK TO MOVE CHESS POSITION  ", rook_to_move.chess_position)
-	
 	rook_to_move_square.has_piece = true
 	rook_to_move_square.piece_type = rook_to_move.piece_type
 	rook_to_move_square.white = rook_to_move.white
@@ -313,12 +319,15 @@ func redo():
 		freeze_buttons()
 		freeze_pieces()
 		black_move_counter += 1
+		# Step forward a full move pair (or fewer if there's less to redo).
+		redo_steps_remaining = 2
 		redo_individual_move()
 		
 
 		
 func redo_individual_move():
 	if redo_moves.size() == 0:
+		undo_done()
 		return
 	var redo_array = redo_moves.pop_back()
 	moves.append(redo_array)
@@ -354,27 +363,23 @@ func redo_individual_move():
 
 			
 			
-	if redo_piece.white:
-		white_rook_kingside_moved = redo_array[9][0]
-		white_rook_queenside_moved = redo_array[9][1]
-		white_king_moved = redo_array[9][2]
-	else:
-		black_rook_kingside_moved = redo_array[9][0]
-		black_rook_queenside_moved = redo_array[9][1]
-		black_king_moved = redo_array[9][2]
+	# Re-apply castling/king-rook state the way move() does. This re-performs the
+	# rook move on a castle — the old code restored the PRE-move flags here, so
+	# the rook never re-castled — and sets the correct post-move flags.
+	conduct_castling_checks(redo_piece, previous_square.chess_position, current_square.chess_position)
 	
 	
 	
 	redo_piece.legal_moves = redo_array[4]
 	
-	if !redo_piece.white:
-		var tween = get_tree().create_tween()
-		tween.tween_property(redo_piece, "global_position", current_square.global_position + current_square.get_node("CollisionShape2D").shape.extents, .1)
-		tween.tween_callback(undo_done)
+	redo_steps_remaining -= 1
+
+	var tween = get_tree().create_tween()
+	tween.tween_property(redo_piece, "global_position", current_square.global_position + current_square.get_node("CollisionShape2D").shape.extents, .1)
+	if redo_steps_remaining > 0 and redo_moves.size() > 0:
+		tween.tween_callback(redo_individual_move)
 	else:
-		var tween2 = get_tree().create_tween()
-		tween2.tween_property(redo_piece, "global_position", current_square.global_position + current_square.get_node("CollisionShape2D").shape.extents, .1)
-		tween2.tween_callback(redo_individual_move)
+		tween.tween_callback(undo_done)
 
 	
 func undo():
@@ -382,9 +387,15 @@ func undo():
 		freeze_buttons()
 		freeze_pieces()
 		black_move_counter -= 1
+		# Always step back a full move pair (or fewer if the history is shorter),
+		# no matter which colour the human plays.
+		undo_steps_remaining = 2
 		undo_individual_move()
 	
 func undo_individual_move():
+	if moves.size() == 0:
+		undo_finalize()
+		return
 
 	var undo_array = moves.pop_back()
 	redo_moves.append(undo_array)
@@ -441,14 +452,18 @@ func undo_individual_move():
 	if "-" not in undo_array[10]:
 		en_passant_square = undo_array[10]
 	
-	if undo_piece.white:
-		var tween = get_tree().create_tween()
-		tween.tween_property(undo_piece, "global_position", previous_global_position, .1)
-		tween.tween_callback(undo_done)
+	# The last step's snapshot is the one undo_finalize applies. Stop after the
+	# requested number of plies (or early if the history runs out) — colour no
+	# longer decides when to stop.
+	pending_legal_snapshot = undo_array[11]
+	undo_steps_remaining -= 1
+
+	var tween = get_tree().create_tween()
+	tween.tween_property(undo_piece, "global_position", previous_global_position, .1)
+	if undo_steps_remaining > 0 and moves.size() > 0:
+		tween.tween_callback(undo_individual_move)
 	else:
-		var tween2 = get_tree().create_tween()
-		tween2.tween_property(undo_piece, "global_position", previous_global_position, .1)
-		tween2.tween_callback(undo_individual_move)
+		tween.tween_callback(undo_finalize)
 		
 
 	
@@ -457,9 +472,22 @@ func undo_done():
 	for piece in get_tree().get_nodes_in_group("pieces"):
 		piece.legal_moves =  []
 		
-	print("finished_undo")
 	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	top_level.perft()
+	unfreeze_buttons()
+	unfreeze_white_pieces()
+
+func undo_finalize():
+	# Reload the legal moves this position had when it was actually played,
+	# instead of re-running perft (which could desync and surface impossible
+	# moves). Keyed by each piece's restored square.
+	for piece in get_tree().get_nodes_in_group("pieces"):
+		if pending_legal_snapshot.has(piece.chess_position):
+			piece.legal_moves = pending_legal_snapshot[piece.chess_position].duplicate()
+		else:
+			piece.legal_moves = []
+	# Keep the engine's position in sync for the next move / evaluation.
+	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	unfreeze_buttons()
 	unfreeze_white_pieces()
 
@@ -638,6 +666,23 @@ func unfreeze_pieces():
 	unfreeze_white_pieces()
 	unfreeze_black_pieces()
 	
+func cancel_pickup(piece):
+	# Called when a held piece is released somewhere that isn't a legal move
+	# (including its own square). No move happened, so the position — and the
+	# piece's legal_moves — are unchanged; we just restore the interaction state
+	# so play can continue: snap the piece home, hide its move highlights, and
+	# re-enable the side to move.
+	piece.global_position = piece.default_location
+	piece.activated = false
+	piece.get_node("CollisionShape2D").disabled = false
+	for move in piece.legal_moves:
+		get_square(move).get_node("CollisionShape2D").disabled = true
+		get_square(move).get_node("premove").visible = false
+	if white_to_move:
+		unfreeze_white_pieces()
+	else:
+		unfreeze_black_pieces()
+
 func freeze_buttons():
 	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Redo").disabled = true
 	get_parent().get_parent().get_node("BoardAuxiliaryContainer/HBoxContainer/Undo").disabled = true
@@ -736,7 +781,6 @@ func initiate_board(letters, numbers):
 			square.get_node("ColorRect").custom_minimum_size = Vector2(letters_size, numbers_size)
 			square.position = Vector2(j * numbers_size, i * letters_size)
 			square.chess_position = str(possible_letters[place_holder_numbers % letters]) + str(numbers - i)
-			square.get_node("Label").text = square.chess_position
 			
 			place_holder_numbers = place_holder_numbers + 1
 			squares_dict[square.chess_position] = square

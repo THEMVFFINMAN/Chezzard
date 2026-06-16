@@ -2,23 +2,32 @@
 
 [ext_resource type="Script" uid="uid://bcwo7x8c8nmik" path="res://Scenes/board_auxiliary_container.gd" id="1_oiclw"]
 
-[node name="BoardAuxiliaryContainer" type="Node2D"]
+[node name="BoardAuxiliaryContainer" type="CanvasLayer"]
 script = ExtResource("1_oiclw")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -232.0
+offset_top = 60.0
+offset_right = -12.0
+offset_bottom = 104.0
+grow_horizontal = 0
+theme_override_constants/separation = 12
 
 [node name="Undo" type="Button" parent="HBoxContainer"]
+custom_minimum_size = Vector2(100, 44)
 layout_mode = 2
-text = "UNDO"
+text = "◀ Back"
 
 [node name="VSeparator" type="VSeparator" parent="HBoxContainer"]
 layout_mode = 2
 
 [node name="Redo" type="Button" parent="HBoxContainer"]
+custom_minimum_size = Vector2(100, 44)
 layout_mode = 2
-text = "REDO"
+text = "Forward ▶"
 
 [connection signal="button_down" from="HBoxContainer/Undo" to="." method="_on_undo_button_down"]
 [connection signal="button_down" from="HBoxContainer/Redo" to="." method="_on_redo_button_down"]

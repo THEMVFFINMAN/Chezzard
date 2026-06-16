@@ -1,3 +1,16 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Editor temp files
+*.tmp
+
+# Runtime / engine logs
+debug.log
+
+# Native build artifacts (keep the compiled .dll/.so/.a, drop the rest)
+*.obj
+*.obj.import
+*.exp
+*.lib
+~*.dll
