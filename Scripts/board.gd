@@ -269,7 +269,7 @@ func move(previous_chess_position, chess_position):
 		if !computer_opponent or !is_computer_turn():
 			unfreeze_white_pieces()
 	
-	moves.append({
+	var record = {
 		"piece": piece_to_move,
 		"from_square": previous_chess_square,
 		"to_square": get_square(chess_position),
@@ -282,7 +282,9 @@ func move(previous_chess_position, chess_position):
 		"rook_king_flags": rook_king_movement,
 		"en_passant": en_passant_undo_check,
 		"legal_snapshot": legal_snapshot,
-	})
+		"promoted_to": null,  # set by complete_promotion() if this move is a promotion
+	}
+	moves.append(record)
 
 	captured_piece = false
 	set_previous_square(previous_chess_position)
@@ -295,7 +297,7 @@ func move(previous_chess_position, chess_position):
 	# piece is chosen — a pawn sitting on the last rank is an illegal position the
 	# engine would reject.
 	if piece_to_move.piece_type == Globals.Piece_Type_ENUMs.PAWN and _is_promotion_rank(chess_position, piece_to_move.white):
-		pending_promotion = {"pawn": piece_to_move, "prev": previous_chess_position, "cur": chess_position}
+		pending_promotion = {"pawn": piece_to_move, "prev": previous_chess_position, "cur": chess_position, "record": record}
 		# Clear legal moves so no other piece can be picked up while choosing.
 		for p in get_tree().get_nodes_in_group("pieces"):
 			p.legal_moves = []
@@ -364,6 +366,7 @@ func _show_promotion_popup(pawn):
 func complete_promotion(chosen_type):
 	var pawn = pending_promotion["pawn"]
 	pawn.piece_type = chosen_type
+	pending_promotion["record"]["promoted_to"] = chosen_type
 	var prefix = "white_" if pawn.white else "black_"
 	pawn.get_node("Sprite2D").play(prefix + Globals.give_piece_name_from_piece_type(chosen_type))
 	get_square(pawn.chess_position).piece_type = chosen_type
@@ -457,6 +460,13 @@ func redo_individual_move():
 	
 	
 	redo_piece.legal_moves = record["piece_legal_moves"]
+
+	# Redo a promotion: re-apply the chosen piece.
+	if record.get("promoted_to", null) != null:
+		redo_piece.piece_type = record["promoted_to"]
+		var promo_prefix = "white_" if redo_piece.white else "black_"
+		redo_piece.get_node("Sprite2D").play(promo_prefix + Globals.give_piece_name_from_piece_type(record["promoted_to"]))
+		current_square.piece_type = record["promoted_to"]
 	
 	redo_steps_remaining -= 1
 
@@ -493,7 +503,13 @@ func undo_individual_move():
 	var previous_global_position = record["from_global_position"]
 	
 	current_square.has_piece = false
-	
+
+	# Undo a promotion: turn the piece back into a pawn before it returns home.
+	if record.get("promoted_to", null) != null:
+		undo_piece.piece_type = Globals.Piece_Type_ENUMs.PAWN
+		var pawn_prefix = "white_" if undo_piece.white else "black_"
+		undo_piece.get_node("Sprite2D").play(pawn_prefix + Globals.give_piece_name_from_piece_type(Globals.Piece_Type_ENUMs.PAWN))
+
 	if record["captured"]:
 		if captured_pieces.size() > 0:
 			var captured_piece = captured_pieces.pop_back()
