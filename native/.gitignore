@@ -1,0 +1,14 @@
+# External checkouts (clone these yourself — see README.md)
+/godot-cpp/
+/Fairy-Stockfish/
+
+# Build artifacts
+*.os
+*.obj
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+.sconsign.dblite
+__pycache__/
