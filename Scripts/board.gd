@@ -24,7 +24,7 @@ var numbers_size = 0
 
 #var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
 
-var generated_fen_string = "rnbqkbnr/pppppppp/7Z/8/8/8/ZZZZZZZZ/SMTULTMS"
+var generated_fen_string = "rnbqkbnr/pppppppp/8/8/3w4/8/ZZZOZVZZ/SMTULTMS"
 
 var board_array : Array
 
@@ -131,6 +131,62 @@ func add_legal_moves_to_pieces(legal_moves):
 
 
 		
+# Wall pieces (stone, iron*) go to the engine as "*" wall squares, so the engine
+# never generates their moves. We add them game-side for the side to move (right
+# after the engine's legal moves). They only step onto empty squares — never
+# capturing.
+func is_wall_piece(type):
+	return type == Globals.Piece_Type_ENUMs.STONE or type == Globals.Piece_Type_ENUMs.IRONQUEEN
+
+func add_wall_piece_moves():
+	var group = "white_pieces" if white_to_move else "black_pieces"
+	for piece in get_tree().get_nodes_in_group(group):
+		if piece.dead:
+			continue
+		match piece.piece_type:
+			Globals.Piece_Type_ENUMs.STONE:
+				_add_king_step_moves(piece)
+			Globals.Piece_Type_ENUMs.IRONQUEEN:
+				_add_slider_moves(piece, true, true)  # orthogonal + diagonal = queen
+
+# Sliding move generation to empty squares only (stops before any piece, since
+# wall pieces can't capture). orthogonal = rook lines, diagonal = bishop lines.
+func _add_slider_moves(piece, orthogonal, diagonal):
+	var dirs = []
+	if orthogonal:
+		dirs += [[1, 0], [-1, 0], [0, 1], [0, -1]]
+	if diagonal:
+		dirs += [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+	var file_index = possible_letters.find(piece.chess_position[0])
+	var rank = int(piece.chess_position.substr(1, piece.chess_position.length() - 1))
+	for d in dirs:
+		var nf = file_index
+		var nr = rank
+		while true:
+			nf += d[0]
+			nr += d[1]
+			if nf < 0 or nf >= width or nr < 1 or nr > length:
+				break
+			var target = str(possible_letters[nf]) + str(nr)
+			if get_square(target).has_piece:
+				break  # blocked — can't capture, so stop before the piece
+			piece.add_legal_move(target)
+
+func _add_king_step_moves(piece):
+	var file_index = possible_letters.find(piece.chess_position[0])
+	var rank = int(piece.chess_position.substr(1, piece.chess_position.length() - 1))
+	for df in [-1, 0, 1]:
+		for dr in [-1, 0, 1]:
+			if df == 0 and dr == 0:
+				continue
+			var nf = file_index + df
+			var nr = rank + dr
+			if nf < 0 or nf >= width or nr < 1 or nr > length:
+				continue
+			var target = str(possible_letters[nf]) + str(nr)
+			if not get_square(target).has_piece:
+				piece.add_legal_move(target)
+
 func conduct_castling_checks(piece_to_move, previous_chess_position, chess_position):
 	# Reset for this move; only set below when a castle actually happens. (Resetting
 	# here, not after the move() append, keeps redo from leaving a stale value.)
@@ -723,7 +779,10 @@ func generate_fen_string():
 				if blank_space_counter > 0:
 					fen_string += str(blank_space_counter)
 					blank_space_counter = 0
-				fen_string += Globals.get_fen_string_from_enum(square.piece_type, square.white)
+				if is_wall_piece(square.piece_type):
+					fen_string += "*"  # stone/iron -> engine wall square (uncapturable, blocks)
+				else:
+					fen_string += Globals.get_fen_string_from_enum(square.piece_type, square.white)
 			elif j == width - 1 and i == length - 1:
 				blank_space_counter += 1
 				fen_string += str(blank_space_counter)

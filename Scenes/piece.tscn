@@ -1,4 +1,4 @@
-[gd_scene load_steps=52 format=3 uid="uid://bdnpycdyg08jb"]
+[gd_scene load_steps=54 format=3 uid="uid://bdnpycdyg08jb"]
 
 [ext_resource type="Script" uid="uid://cmn2i37njjuta" path="res://Scripts/piece.gd" id="1_b7235"]
 [ext_resource type="Texture2D" uid="uid://cll2rua4y4ycp" path="res://Assets/pieces.png" id="2_5yq8s"]
@@ -191,8 +191,32 @@ region = Rect2(176, 0, 16, 16)
 atlas = ExtResource("2_5yq8s")
 region = Rect2(160, 0, 16, 16)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_whitestone"]
+atlas = ExtResource("2_5yq8s")
+region = Rect2(384, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_blackstone"]
+atlas = ExtResource("2_5yq8s")
+region = Rect2(384, 16, 16, 16)
+
 [sub_resource type="SpriteFrames" id="SpriteFrames_pm6vr"]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_whitestone")
+}],
+"loop": true,
+"name": &"white_stone",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_blackstone")
+}],
+"loop": true,
+"name": &"black_stone",
+"speed": 5.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_ydv4c")

@@ -85,7 +85,8 @@ func _init_engine():
 
 	if board.generated_fen_string.length() > 0:
 		send_to_stockfish("position startpos")
-		send_to_stockfish("position fen " + board.generated_fen_string)
+		# Use the generated FEN (stones become "*" wall squares the engine respects).
+		send_to_stockfish("position fen " + board.generate_fen_string())
 	else:
 		send_to_stockfish(start_position_string)
 	send_to_stockfish(start_game_string)
@@ -150,6 +151,7 @@ func _on_engine_line(line: String) -> void:
 	if line.begins_with("Nodes searched"):
 		if not promotion:
 			board.call_deferred("add_legal_moves_to_pieces", legal_moves.duplicate())
+			board.call_deferred("add_wall_piece_moves")
 		legal_moves.clear()
 		return
 
