@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://cyldjdhj0onrv"]
+
+[ext_resource type="Script" path="res://Scenes/mode_select.gd" id="1_mode"]
+
+[node name="ModeSelect" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_mode")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+text = "Play against:"
+horizontal_alignment = 1
+
+[node name="Human" type="Button" parent="CenterContainer/Panel/VBox"]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+text = "Human (hot-seat)"
+
+[node name="Computer" type="Button" parent="CenterContainer/Panel/VBox"]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+text = "Computer (AI)"
+
+[connection signal="pressed" from="CenterContainer/Panel/VBox/Human" to="." method="_on_human_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBox/Computer" to="." method="_on_computer_pressed"]

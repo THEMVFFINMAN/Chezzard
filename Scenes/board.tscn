@@ -1,12 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://b10obfs1ip34g"]
+[gd_scene format=3 uid="uid://b10obfs1ip34g"]
 
 [ext_resource type="Script" uid="uid://dquvg5w6wn4it" path="res://Scripts/board.gd" id="1_p6hac"]
 [ext_resource type="PackedScene" uid="uid://ca66kherevy6f" path="res://Scenes/promotion_display.tscn" id="2_2wvcj"]
 
-[node name="Board" type="Node2D"]
+[node name="Board" type="Node2D" unique_id=1538100817]
 script = ExtResource("1_p6hac")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=257581364]
 anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
@@ -18,12 +18,12 @@ grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="black_move_timer" type="Timer" parent="."]
+[node name="black_move_timer" type="Timer" parent="." unique_id=271860149]
 wait_time = 0.5
 
-[node name="Promotion_display" parent="." instance=ExtResource("2_2wvcj")]
+[node name="Promotion_display" parent="." unique_id=1055873401 instance=ExtResource("2_2wvcj")]
 
-[node name="Button" type="CheckBox" parent="."]
+[node name="Button" type="CheckBox" parent="." unique_id=1191421839]
 offset_left = 795.0
 offset_top = 331.0
 offset_right = 1097.0

@@ -24,7 +24,7 @@ var numbers_size = 0
 
 #var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
 
-var generated_fen_string = "rnbqkbnr/pppppppp/7P/8/8/8/ZZZZZZZZ/SMTULTMS"
+var generated_fen_string = "rnbqkbnr/pppppppp/7Z/8/8/8/ZZZZZZZZ/SMTULTMS"
 
 var board_array : Array
 
@@ -72,6 +72,20 @@ var castle_info = {}
 var computer_opponent
 var player_white
 
+# --- Per-game rule toggles (Inspector-settable on the Board node) ---
+@export var disable_white_castling := false
+@export var disable_black_castling := false
+# Flip swaps the king-file (e) and queen-file (d) starting pieces for that side.
+# A flipped side also loses castling (its royal leaves the e-file).
+@export var flip_white_king_queen := false
+@export var flip_black_king_queen := false
+@export var three_check := false  # win by delivering 3 checks
+
+# 3-check tracking (used only when three_check is on)
+signal three_check_won(white_won)
+var white_checks := 0
+var black_checks := 0
+
 func _enter_tree():
 	# Registered early (before children are ready) so nested nodes can find the
 	# board via the "board" group instead of brittle get_parent() chains.
@@ -83,6 +97,7 @@ func _ready():
 	black_move_timer = $black_move_timer
 	initiate_board(length, width)
 	#initialize_weird_pieces()
+	generated_fen_string = _apply_starting_flips(generated_fen_string)
 	generate_board_from_fen_string(generated_fen_string)
 
 	#top_level.send_
@@ -209,6 +224,24 @@ func conduct_en_passant_check(piece_to_move, previous_chess_position, chess_posi
 		
 func is_computer_turn():
 	return (white_to_move == !player_white)
+
+# Called by board_container when the engine reports the side to move is in check.
+# by_white = the side that just moved (i.e. who delivered the check).
+func register_check(by_white):
+	if not three_check:
+		return
+	if by_white:
+		white_checks += 1
+	else:
+		black_checks += 1
+	# Record the new tally on the move that delivered the check, so undo/redo can
+	# restore it exactly.
+	if moves.size() > 0:
+		moves[moves.size() - 1]["checks_after"] = [white_checks, black_checks]
+	if white_checks >= 3:
+		three_check_won.emit(true)
+	elif black_checks >= 3:
+		three_check_won.emit(false)
 		
 func move(previous_chess_position, chess_position):
 	redo_moves.clear()
@@ -283,6 +316,8 @@ func move(previous_chess_position, chess_position):
 		"en_passant": en_passant_undo_check,
 		"legal_snapshot": legal_snapshot,
 		"promoted_to": null,  # set by complete_promotion() if this move is a promotion
+		"checks_before": [white_checks, black_checks],
+		"checks_after": [white_checks, black_checks],  # updated by register_check() if this move checks
 	}
 	moves.append(record)
 
@@ -461,6 +496,9 @@ func redo_individual_move():
 	
 	
 	redo_piece.legal_moves = record["piece_legal_moves"]
+	if record.has("checks_after"):
+		white_checks = record["checks_after"][0]
+		black_checks = record["checks_after"][1]
 
 	# Redo a promotion: re-apply the chosen piece.
 	if record.get("promoted_to", null) != null:
@@ -563,6 +601,9 @@ func undo_individual_move():
 	# requested number of plies (or early if the history runs out) — colour no
 	# longer decides when to stop.
 	pending_legal_snapshot = record["legal_snapshot"]
+	if record.has("checks_before"):
+		white_checks = record["checks_before"][0]
+		black_checks = record["checks_before"][1]
 	undo_steps_remaining -= 1
 
 	var tween = get_tree().create_tween()
@@ -697,7 +738,10 @@ func generate_fen_string():
 		fen_string += " b"
 	
 	fen_string += " " + check_castle()
-	fen_string += " " + check_en_passant() 
+	fen_string += " " + check_en_passant()
+	if three_check:
+		# Fairy-Stockfish check-count field: <whiteRemaining>+<blackRemaining>.
+		fen_string += " " + str(3 - white_checks) + "+" + str(3 - black_checks)
 	fen_string += " " + check_half_moves()
 	fen_string += " " + check_full_moves()
 	
@@ -708,13 +752,13 @@ func generate_fen_string():
 	
 func check_castle():
 	var castle_string = ""
-	if !white_castled:
+	if !white_castled and not disable_white_castling and not flip_white_king_queen:
 		if !white_king_moved:
 			if !white_rook_kingside_moved:
 				castle_string += "K"
 			if !white_rook_queenside_moved:
 				castle_string += "Q"
-	if !black_castled:
+	if !black_castled and not disable_black_castling and not flip_black_king_queen:
 		if !black_king_moved:
 			if !black_rook_kingside_moved:
 				castle_string += "k"
@@ -726,6 +770,23 @@ func check_castle():
 	else:
 		return castle_string
 	
+# Swap the king-file (e) and queen-file (d) pieces on the requested side(s) of
+# the starting position. Back ranks are fully populated at game start, so the
+# d/e files are characters 3 and 4 of the rank string.
+func _apply_starting_flips(fen):
+	var ranks = fen.split("/")
+	if ranks.size() == 8:
+		if flip_black_king_queen:
+			ranks[0] = _swap_de(ranks[0])  # rank 8 = black back rank
+		if flip_white_king_queen:
+			ranks[7] = _swap_de(ranks[7])  # rank 1 = white back rank
+	return "/".join(ranks)
+
+func _swap_de(rank):
+	if rank.length() < 5:
+		return rank
+	return rank.substr(0, 3) + rank[4] + rank[3] + rank.substr(5)
+
 func check_en_passant():
 	if en_passant_square.length() == 0:
 		return "-"

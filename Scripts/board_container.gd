@@ -4,6 +4,8 @@ extends Node
 # native GDExtension on mobile (and desktop, once compiled) or falls back to the
 # stockfish.exe subprocess on desktop while the extension isn't built yet.
 
+const MODE_SELECT_SCENE = preload("res://Scenes/mode_select.tscn")
+
 var engine: EngineBridge
 
 var board
@@ -45,6 +47,23 @@ func _ready():
 
 	get_tree().set_auto_accept_quit(false)
 
+	# Ask who the opponent is before booting the game.
+	_show_mode_select()
+
+
+func _show_mode_select():
+	var popup = MODE_SELECT_SCENE.instantiate()
+	add_child(popup)
+	popup.mode_chosen.connect(_on_mode_chosen.bind(popup))
+
+
+func _on_mode_chosen(vs_computer, popup):
+	# You always start as white. Human = you control both colours; Computer = AI plays black.
+	computer_opponent = vs_computer
+	player_white = true
+	board.computer_opponent = vs_computer
+	board.player_white = true
+	popup.queue_free()
 	_init_engine()
 
 
@@ -59,7 +78,10 @@ func _init_engine():
 	is_running = true
 	send_to_stockfish("setoption name Debug Log File value debug.log")
 	send_to_stockfish("setoption name VariantPath value " + _variants_path())
-	send_to_stockfish(set_custom_variant_string)
+	if board.three_check:
+		send_to_stockfish("setoption name UCI_Variant value custom3check")
+	else:
+		send_to_stockfish(set_custom_variant_string)
 
 	if board.generated_fen_string.length() > 0:
 		send_to_stockfish("position startpos")
@@ -100,6 +122,11 @@ func _on_engine_line(line: String) -> void:
 	if line.begins_with("C:\\Users"):
 		print("CRASHED")
 		return
+
+	# 3-check: the engine's eval prints "(in check)" for the side to move, so
+	# whoever just moved delivered a check.
+	if board.three_check and "(in check)" in line:
+		board.register_check(not board.white_to_move)
 
 	if "checkmate" in line or line == "Nodes searched: 0":
 		print("\n\n\nCHECKMATE\n\n\n")
