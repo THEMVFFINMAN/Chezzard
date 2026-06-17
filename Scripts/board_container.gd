@@ -5,6 +5,7 @@ extends Node
 # stockfish.exe subprocess on desktop while the extension isn't built yet.
 
 const MODE_SELECT_SCENE = preload("res://Scenes/mode_select.tscn")
+const GAME_OVER_SCENE = preload("res://Scenes/game_over.tscn")
 
 var engine: EngineBridge
 
@@ -23,6 +24,7 @@ var regex = RegEx.new()
 var regex_moves_pattern = r"^[a-zA-Z]\d{1,2}[a-zA-Z]\d{1,2}[qrbn]?: 1$"
 
 var legal_moves = []
+var side_in_check = false  # from the engine's eval; tells checkmate from stalemate
 
 var thread_timer
 
@@ -38,6 +40,8 @@ func _ready():
 	regex.compile(regex_moves_pattern)
 
 	board = get_node("Board")
+	board.game_over.connect(_show_game_over)
+	board.three_check_won.connect(_on_three_check_won)
 
 	engine = EngineBridge.new()
 	engine.name = "EngineBridge"
@@ -55,6 +59,19 @@ func _show_mode_select():
 	var popup = MODE_SELECT_SCENE.instantiate()
 	add_child(popup)
 	popup.mode_chosen.connect(_on_mode_chosen.bind(popup))
+
+
+func _show_game_over(text):
+	var popup = GAME_OVER_SCENE.instantiate()
+	add_child(popup)
+	popup.set_result(text)
+
+
+func _on_three_check_won(white_won):
+	if computer_opponent:
+		_show_game_over("You Win" if white_won else "You Lose")
+	else:
+		_show_game_over("White Wins" if white_won else "Black Wins")
 
 
 func _on_mode_chosen(vs_computer, popup):
@@ -129,8 +146,10 @@ func _on_engine_line(line: String) -> void:
 	if board.three_check and "(in check)" in line:
 		board.register_check(not board.white_to_move)
 
-	if "checkmate" in line or line == "Nodes searched: 0":
-		print("\n\n\nCHECKMATE\n\n\n")
+	# Track whether the side to move is in check (from the eval), so a perft of 0
+	# can be told apart as checkmate vs. stalemate.
+	if line.begins_with("Final evaluation"):
+		side_in_check = "in check" in line
 
 	if line.begins_with("bestmove"):
 		if computer_opponent and board.is_computer_turn():
@@ -152,6 +171,9 @@ func _on_engine_line(line: String) -> void:
 		if not promotion:
 			board.call_deferred("add_legal_moves_to_pieces", legal_moves.duplicate())
 			board.call_deferred("add_wall_piece_moves")
+			if line == "Nodes searched: 0":
+				# No engine moves; re-check after wall moves are added, then end.
+				board.call_deferred("check_game_over", side_in_check)
 		legal_moves.clear()
 		return
 
