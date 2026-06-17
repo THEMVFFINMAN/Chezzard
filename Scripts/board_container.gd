@@ -32,6 +32,7 @@ var board_size = Vector2.ZERO
 
 var computer_opponent = false
 var player_white = true
+var current_variant = "custom"
 
 
 func _ready():
@@ -74,12 +75,14 @@ func _on_three_check_won(white_won):
 		_show_game_over("White Wins" if white_won else "Black Wins")
 
 
-func _on_mode_chosen(vs_computer, popup):
+func _on_mode_chosen(vs_computer, mode_id, popup):
 	# You always start as white. Human = you control both colours; Computer = AI plays black.
 	computer_opponent = vs_computer
 	player_white = true
 	board.computer_opponent = vs_computer
 	board.player_white = true
+	current_variant = GameModes.apply(board, mode_id)  # configure the board, get the variant
+	board.build_board()
 	popup.queue_free()
 	_init_engine()
 
@@ -95,10 +98,7 @@ func _init_engine():
 	is_running = true
 	send_to_stockfish("setoption name Debug Log File value debug.log")
 	send_to_stockfish("setoption name VariantPath value " + _variants_path())
-	if board.three_check:
-		send_to_stockfish("setoption name UCI_Variant value custom3check")
-	else:
-		send_to_stockfish(set_custom_variant_string)
+	send_to_stockfish("setoption name UCI_Variant value " + current_variant)
 
 	if board.generated_fen_string.length() > 0:
 		send_to_stockfish("position startpos")

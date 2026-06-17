@@ -99,21 +99,22 @@ func _enter_tree():
 	add_to_group("board")
 
 func _ready():
+	black_move_timer = $black_move_timer
+	regex = RegEx.new()
+	regex.compile(r"([a-zA-Z]\d+)")
+	# The board itself is built by board_container once the game mode is chosen
+	# (build_board), so mode settings (board size, FEN, rules) apply first.
+
+# Builds the board for the current mode config. Called by board_container after
+# the mode and opponent are picked.
+func build_board():
 	computer_opponent = get_parent().computer_opponent
 	player_white = get_parent().player_white
-	black_move_timer = $black_move_timer
 	initiate_board(length, width)
-	#initialize_weird_pieces()
 	generated_fen_string = _apply_starting_flips(generated_fen_string)
 	generate_board_from_fen_string(generated_fen_string)
 	_apply_test_materials()
-
-	#top_level.send_
-	
 	freeze_black_pieces()
-	
-	regex = RegEx.new()
-	regex.compile(r"([a-zA-Z]\d+)")
 	
 func check_wall(move):
 	if get_square(move).piece_type == Globals.Piece_Type_ENUMs.WALL:

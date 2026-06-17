@@ -28,6 +28,15 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 12
 
+[node name="ModeLabel" type="Label" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+text = "Game mode:"
+horizontal_alignment = 1
+
+[node name="ModeOption" type="OptionButton" parent="CenterContainer/Panel/VBox"]
+custom_minimum_size = Vector2(180, 36)
+layout_mode = 2
+
 [node name="Label" type="Label" parent="CenterContainer/Panel/VBox"]
 layout_mode = 2
 text = "Play against:"
