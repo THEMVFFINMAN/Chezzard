@@ -80,11 +80,18 @@ var player_white
 @export var flip_white_king_queen := false
 @export var flip_black_king_queen := false
 @export var three_check := false  # win by delivering 3 checks
+# Testing hook: assign materials to squares at startup, e.g. {"d1": "gold"}.
+@export var test_materials := {}
 
 # 3-check tracking (used only when three_check is on)
 signal three_check_won(white_won)
 var white_checks := 0
 var black_checks := 0
+
+# Emitted once when the side to move has no legal moves (checkmate/stalemate).
+# board_container listens and shows the game-over popup.
+signal game_over(result_text)
+var game_over_emitted := false
 
 func _enter_tree():
 	# Registered early (before children are ready) so nested nodes can find the
@@ -99,6 +106,7 @@ func _ready():
 	#initialize_weird_pieces()
 	generated_fen_string = _apply_starting_flips(generated_fen_string)
 	generate_board_from_fen_string(generated_fen_string)
+	_apply_test_materials()
 
 	#top_level.send_
 	
@@ -186,6 +194,39 @@ func _add_king_step_moves(piece):
 			var target = str(possible_letters[nf]) + str(nr)
 			if not get_square(target).has_piece:
 				piece.add_legal_move(target)
+
+## Apply test materials (Inspector dict of square -> material name) after setup.
+func _apply_test_materials():
+	for sq in test_materials:
+		var p = get_piece(sq)
+		if p:
+			p.set_material(test_materials[sq])
+
+# Called (deferred) when the engine's perft for the side to move was 0. Wall
+# pieces (stone/iron) are added game-side, so re-check real legal moves before
+# declaring the game over, then emit game_over with the popup text.
+func check_game_over(in_check):
+	if game_over_emitted:
+		return
+	if _side_to_move_has_move():
+		return  # a stone/iron piece can still move -> not over
+	var text
+	if not in_check:
+		text = "Draw"  # stalemate
+	elif computer_opponent:
+		text = "You Lose" if white_to_move else "You Win"
+	else:
+		text = "Black Wins" if white_to_move else "White Wins"
+	game_over_emitted = true
+	emit_signal("game_over", text)
+
+func _side_to_move_has_move():
+	var group = "white_pieces" if white_to_move else "black_pieces"
+	for piece in get_tree().get_nodes_in_group(group):
+		if not piece.dead and piece.legal_moves.size() > 0:
+			return true
+	return false
+
 
 func conduct_castling_checks(piece_to_move, previous_chess_position, chess_position):
 	# Reset for this move; only set below when a castle actually happens. (Resetting

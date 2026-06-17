@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://cglassmat0chez1"]
+
+[ext_resource type="Shader" path="res://Assets/glass.gdshader" id="1"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/glass_tint = Color(0.60, 0.80, 0.95, 1)
+shader_parameter/rim_color = Color(1, 1, 1, 1)
+shader_parameter/transparency = 0.55
