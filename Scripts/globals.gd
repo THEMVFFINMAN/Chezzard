@@ -26,6 +26,8 @@ enum Piece_Type_ENUMs {
 	WALL,
 	EMPRESS,
 	PRINCE,
+	STONE,
+	IRONQUEEN,
 	NONE
 }
 
@@ -56,6 +58,8 @@ const PIECE_INFO = {
 	Piece_Type_ENUMs.WALL:        {"name": "wall",        "fen": "w"},
 	Piece_Type_ENUMs.EMPRESS:     {"name": "empress",     "fen": "j"},
 	Piece_Type_ENUMs.PRINCE:      {"name": "prince",      "fen": "l"},
+	Piece_Type_ENUMs.STONE:       {"name": "stone",       "fen": "o"},  # king-mover, uncapturable
+	Piece_Type_ENUMs.IRONQUEEN:   {"name": "queen",       "fen": "v"},  # moves as queen, uncapturable (queen sprite for now)
 }
 
 var _char_to_enum := {}
@@ -73,6 +77,11 @@ func give_piece_name_from_piece_type(enum_value):
 
 func get_piece_type_enum_from_string(value):
 	return _char_to_enum.get(value.to_lower(), Piece_Type_ENUMs.NONE)
+
+
+# Iron pieces reuse their base sprite + the iron recolor shader (no custom art).
+func is_iron(type):
+	return type == Piece_Type_ENUMs.IRONQUEEN
 
 
 func get_fen_string_from_enum(value, white):

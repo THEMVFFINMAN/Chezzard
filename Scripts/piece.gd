@@ -1,5 +1,7 @@
 extends StaticBody2D
 
+const IRON_MATERIAL = preload("res://Assets/iron_material.tres")
+
 var white = true
 var piece_type
 var has_mouse = false
@@ -62,6 +64,9 @@ func _ready():
 	# Hide leftover debug overlays.
 	get_node("Label").visible = false
 	get_node("Label2").visible = false
+	# Iron pieces reuse their base sprite, recolored to metal by the iron shader.
+	if Globals.is_iron(piece_type):
+		get_node("Sprite2D").material = IRON_MATERIAL
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta: float) -> void:
