@@ -4,3 +4,7 @@
 
 [resource]
 shader = ExtResource("1_iron")
+shader_parameter/shadow_color = Color(0.14, 0.13, 0.12, 1)
+shader_parameter/mid_color = Color(0.26, 0.24, 0.22, 1)
+shader_parameter/highlight_color = Color(0.42, 0.4, 0.37, 1)
+shader_parameter/sheen_strength = 0.0

@@ -27,7 +27,8 @@ var select_promotion_piece = false
 
 # Material flag (e.g. "gold", "glass", "blood"); "" = plain. Drives the recolor
 # shader and (later) the economy/risk effects in Globals.MATERIAL_EFFECTS.
-var material = ""
+# (Named piece_material to avoid CanvasItem's built-in "material" property.)
+var piece_material = ""
 
 func delete_self():
 	dead_position = global_position
@@ -75,14 +76,14 @@ func _ready():
 # Picks the right recolor ShaderMaterial: an explicit material flag wins,
 # otherwise iron pieces fall back to the iron material.
 func _apply_material_visual():
-	if material != "" and Globals.MATERIALS.has(material):
-		get_node("Sprite2D").material = Globals.MATERIALS[material]
+	if piece_material != "" and Globals.MATERIALS.has(piece_material):
+		get_node("Sprite2D").material = Globals.MATERIALS[piece_material]
 	elif Globals.is_iron(piece_type):
 		get_node("Sprite2D").material = IRON_MATERIAL
 
 # Runtime hook (upgrades / tests): set a piece's material and refresh its look.
-func set_material(new_material):
-	material = new_material
+func apply_material(new_material):
+	piece_material = new_material
 	_apply_material_visual()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
