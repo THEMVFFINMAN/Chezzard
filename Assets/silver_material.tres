@@ -1,10 +1,10 @@
-[gd_resource type="ShaderMaterial" format=3 uid="uid://csilvermat0chez"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://cynpmtjvv110d"]
 
 [ext_resource type="Shader" path="res://Assets/iron.gdshader" id="1"]
 
 [resource]
 shader = ExtResource("1")
-shader_parameter/shadow_color = Color(0.35, 0.38, 0.42, 1)
-shader_parameter/mid_color = Color(0.72, 0.76, 0.82, 1)
+shader_parameter/shadow_color = Color(0.4, 0.44, 0.5, 1)
+shader_parameter/mid_color = Color(0.76, 0.8, 0.88, 1)
 shader_parameter/highlight_color = Color(1, 1, 1, 1)
-shader_parameter/sheen_strength = 0.6
+shader_parameter/sheen_strength = 0.7

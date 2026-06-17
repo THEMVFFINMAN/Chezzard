@@ -201,7 +201,7 @@ func _apply_test_materials():
 	for sq in test_materials:
 		var p = get_piece(sq)
 		if p:
-			p.set_material(test_materials[sq])
+			p.apply_material(test_materials[sq])
 
 # Called (deferred) when the engine's perft for the side to move was 0. Wall
 # pieces (stone/iron) are added game-side, so re-check real legal moves before
