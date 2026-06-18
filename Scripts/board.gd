@@ -430,6 +430,14 @@ func _on_blood_death(captured):
 	if Globals.MATERIAL_EFFECTS.get(captured.piece_material, {}).get("lose_on_loss", false):
 		RunState.lose_piece(captured.origin)
 
+# Debug / convenience: end the current battle as a player win (Auto-Win button).
+func force_win_player():
+	if game_over_emitted:
+		return
+	game_over_emitted = true
+	_award_win_once(player_white)
+	emit_signal("game_over", _game_over_text(not player_white))
+
 # Win reward: the primary, mode-agnostic income — paid once when YOU win.
 func _award_win_once(winner_white):
 	if win_awarded:

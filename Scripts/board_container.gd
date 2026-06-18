@@ -56,7 +56,16 @@ func _ready():
 
 	# In a run, jump straight into the current floor; otherwise pick a mode.
 	if RunState.in_run:
-		_start_run_battle()
+		# Give the engine a moment to boot before we configure the variant. The
+		# mode-select path gets this delay for free (the human takes time to click);
+		# auto-starting from _ready would otherwise send commands to a dead engine
+		# and the first perft comes back empty -> instant "draw" -> run over.
+		var boot = Timer.new()
+		boot.wait_time = 1.0
+		boot.one_shot = true
+		add_child(boot)
+		boot.timeout.connect(_start_run_battle)
+		boot.start()
 	else:
 		_show_mode_select()
 
@@ -78,6 +87,13 @@ func _setup_gold_hud():
 	var refresh = func(total): label.text = "Floor %d/%d   Gold: %d" % [RunState.floor, RunState.FLOOR_COUNT, total]
 	refresh.call(RunState.gold)
 	RunState.gold_changed.connect(refresh)
+
+	# Debug / convenience: instantly win the current battle and continue the run.
+	var win_btn = Button.new()
+	win_btn.text = "Auto-Win"
+	win_btn.position = Vector2(16, 44)
+	win_btn.pressed.connect(func(): board.force_win_player())
+	layer.add_child(win_btn)
 
 
 func _show_mode_select():
@@ -191,6 +207,9 @@ func _init_engine():
 	var vpath = _variant_path_override if _variant_path_override != "" else _variants_path()
 	send_to_stockfish("setoption name VariantPath value " + vpath)
 	send_to_stockfish("setoption name UCI_Variant value " + current_variant)
+	# Runs are meant to be beatable: throttle the AI right down (0 = weakest).
+	if RunState.in_run:
+		send_to_stockfish("setoption name Skill Level value 0")
 
 	if board.generated_fen_string.length() > 0:
 		send_to_stockfish("position startpos")
