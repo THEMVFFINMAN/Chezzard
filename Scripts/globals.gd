@@ -165,12 +165,38 @@ const MATERIALS = {
 const MATERIAL_EFFECTS = {
 	"silver": {"money_mult": 1.5, "break_chance": 0.0,  "lose_on_loss": false},
 	"gold":   {"money_mult": 2.0, "break_chance": 0.0,  "lose_on_loss": false},
-	"glass":  {"money_mult": 1.0, "break_chance": 0.25, "lose_on_loss": false},
-	"blood":  {"money_mult": 3.0, "break_chance": 0.0,  "lose_on_loss": true},
+	"glass":  {"money_mult": 4.0, "break_chance": 0.25, "lose_on_loss": false},
+	"blood":  {"money_mult": 5.0, "break_chance": 0.0,  "lose_on_loss": true},
 }
 
 func get_material_shader(name):
 	return MATERIALS.get(name, null)
+
+
+# Capture value (gold) per piece, for the economy. Uncapturable wall pieces never
+# get taken, so they don't need a value here.
+const PIECE_VALUES = {
+	Piece_Type_ENUMs.PAWN: 1, Piece_Type_ENUMs.SHORTPAWN: 1,
+	Piece_Type_ENUMs.KNIGHT: 3, Piece_Type_ENUMs.BISHOP: 3,
+	Piece_Type_ENUMs.ROOK: 5, Piece_Type_ENUMs.QUEEN: 9,
+	Piece_Type_ENUMs.KING: 4, Piece_Type_ENUMs.PRINCE: 4,
+	Piece_Type_ENUMs.SHORTROOK: 4, Piece_Type_ENUMs.SHORTBISHOP: 3,
+	Piece_Type_ENUMs.MULE: 2, Piece_Type_ENUMs.MAN: 3,
+	Piece_Type_ENUMs.PRINCESS: 6, Piece_Type_ENUMs.GIRAFFE: 2,
+	Piece_Type_ENUMs.KNIGHTRIDER: 5, Piece_Type_ENUMs.EMPRESS: 9,
+	Piece_Type_ENUMs.ARCHBISHOP: 7, Piece_Type_ENUMs.CHANCELLOR: 8,
+	Piece_Type_ENUMs.AMAZON: 12, Piece_Type_ENUMs.ROYALKNIGHT: 5,
+	Piece_Type_ENUMs.ROYALBISHOP: 5, Piece_Type_ENUMs.ROYALROOK: 6,
+	Piece_Type_ENUMs.WALL: 0,
+	Piece_Type_ENUMs.FERZ: 2, Piece_Type_ENUMs.ALFIL: 2,
+	Piece_Type_ENUMs.DABBABA: 2, Piece_Type_ENUMs.GOLDGENERAL: 3,
+	Piece_Type_ENUMs.SILVERGENERAL: 3, Piece_Type_ENUMs.CAMEL: 2,
+	Piece_Type_ENUMs.ZEBRA: 2, Piece_Type_ENUMs.WILDEBEEST: 5,
+	Piece_Type_ENUMs.DABBABARIDER: 4, Piece_Type_ENUMs.BUFFALO: 6,
+}
+
+func piece_value(piece_type):
+	return PIECE_VALUES.get(piece_type, 1)
 
 
 # --- Modifiers ---

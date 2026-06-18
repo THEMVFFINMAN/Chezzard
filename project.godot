@@ -21,6 +21,7 @@ config/features=PackedStringArray("4.6")
 [autoload]
 
 Globals="*res://Scripts/globals.gd"
+RunState="*res://Scripts/run_state.gd"
 
 [input]
 

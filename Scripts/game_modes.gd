@@ -210,7 +210,7 @@ static func default_layout():
 				{"piece": E.MULE, "material": "silver"},
 				E.ROOK,
 			],
-			2: [{"piece": E.SHORTPAWN, "material": "iron"}, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN],
+			2: [{"piece": E.SHORTPAWN, "material": "iron"}, {"piece": E.SHORTPAWN, "material": "glass"}, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN],
 		},
 		"black": {
 			8: [E.ROOK, E.KNIGHT, E.BISHOP, E.QUEEN, E.KING, E.BISHOP, E.KNIGHT, E.ROOK],
