@@ -8,9 +8,10 @@ signal mode_chosen(vs_computer, mode_id)
 
 func _ready() -> void:
 	# Populate the mode dropdown from the GameModes table (order = insertion).
+	var ms = GameModes.modes()
 	var i = 0
-	for id in GameModes.MODES:
-		mode_option.add_item(GameModes.MODES[id]["name"])
+	for id in ms:
+		mode_option.add_item(ms[id]["name"])
 		mode_option.set_item_metadata(i, id)
 		i += 1
 
