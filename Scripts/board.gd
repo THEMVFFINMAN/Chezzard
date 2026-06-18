@@ -356,6 +356,12 @@ func apply_modifier_filters():
 				piece.legal_moves = []
 		if double_pending_piece.legal_moves.is_empty():
 			_end_double_turn()  # can't move again -> just end the turn
+		else:
+			# Re-enable the piece for its second pickup. We skipped _flip_turn (to keep
+			# the turn), which is normally what re-enables the side-to-move's pieces, so
+			# without this the double piece's collision stays disabled and it can't be
+			# grabbed again.
+			double_pending_piece.get_node("CollisionShape2D").disabled = false
 
 func _filter_colorbound(piece):
 	if piece.legal_moves.is_empty():

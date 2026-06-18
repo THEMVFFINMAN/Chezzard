@@ -113,15 +113,22 @@ func _draw():
 	var turns = _cooldown_turns()
 	if turns > 0:
 		var c = Vector2(-12, -12) if _is_jumper() else Vector2(12, -12)
-		draw_circle(c, 6.0, Color(1, 1, 1))
-		draw_arc(c, 6.0, 0.0, TAU, 24, Color(0, 0, 0), 1.5)
-		draw_string(ThemeDB.fallback_font, c + Vector2(-3, 4), str(turns),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0, 0, 0))
+		_draw_badge(c, str(turns))
+	# Double: a "2" badge on the top-left (same style as the cooldown badge).
+	if has_modifier("double"):
+		_draw_badge(Vector2(-12, -12), "2")
 	# Racist: two bars under the piece, in the colour it can move on.
 	if has_modifier("racist"):
 		var bar = Color(0.95, 0.95, 0.95) if _racist_light() else Color(0.12, 0.12, 0.12)
 		draw_rect(Rect2(-14, 13, 28, 2), bar)
 		draw_rect(Rect2(-14, 16, 28, 2), bar)
+
+# A small number badge: black text in a white circle with a black outline.
+func _draw_badge(c, text):
+	draw_circle(c, 6.0, Color(1, 1, 1))
+	draw_arc(c, 6.0, 0.0, TAU, 24, Color(0, 0, 0), 1.5)
+	draw_string(ThemeDB.fallback_font, c + Vector2(-3, 4), text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0, 0, 0))
 
 func _cooldown_turns():
 	if board == null:
