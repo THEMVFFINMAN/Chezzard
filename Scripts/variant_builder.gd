@@ -18,7 +18,7 @@ extends RefCounted
 const POOL = "abcdefghijklmnopqrstuvwxyz"
 
 
-static func build(roster, board_length = 8, variant_name = "generated", rules = []):
+static func build(roster, board_length = 8, variant_name = "generated", rules = [], royal_count = 1):
 	var enum_to_char = {}
 	var char_to_enum = {}
 	var used = {}
@@ -73,7 +73,8 @@ static func build(roster, board_length = 8, variant_name = "generated", rules = 
 		lines.append("extinctionValue = loss")
 		lines.append("extinctionPseudoRoyal = true")
 		lines.append("extinctionPieceTypes = " + royal)
-		lines.append("extinctionPieceCount = 1")
+		# Lose when you drop below this many royals — 2 = "lose if either king dies".
+		lines.append("extinctionPieceCount = " + str(royal_count))
 	if promote != "":
 		lines.append("promotionPieceTypes = " + promote)
 	lines.append("promotionRegionWhite = *" + str(board_length))
