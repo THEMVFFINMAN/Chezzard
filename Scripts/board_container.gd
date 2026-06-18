@@ -108,6 +108,7 @@ func _on_mode_chosen(vs_computer, mode_id, popup):
 	# Position always comes from the layout/placements — never a hardcoded FEN.
 	board.generated_fen_string = VariantBuilder.placements_to_fen(pl, enum_to_char, board.width, board.length)
 	board.test_materials = VariantBuilder.placements_materials(pl)
+	board.test_modifiers = VariantBuilder.placements_modifiers(pl)
 	board.build_board()
 	popup.queue_free()
 	_init_engine()
@@ -198,6 +199,7 @@ func _on_engine_line(line: String) -> void:
 		if not promotion:
 			board.call_deferred("add_legal_moves_to_pieces", legal_moves.duplicate())
 			board.call_deferred("add_wall_piece_moves")
+			board.call_deferred("apply_modifier_filters")
 			if line == "Nodes searched: 0":
 				# No engine moves; re-check after wall moves are added, then end.
 				board.call_deferred("check_game_over", side_in_check)

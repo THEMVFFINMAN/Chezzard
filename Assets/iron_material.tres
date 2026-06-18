@@ -1,10 +1,10 @@
 [gd_resource type="ShaderMaterial" format=3 uid="uid://k3waueseby1e"]
 
-[ext_resource type="Shader" uid="uid://cym5qodiecjcl" path="res://Assets/iron.gdshader" id="1_iron"]
+[ext_resource type="Shader" path="res://Assets/rough.gdshader" id="1_iron"]
 
 [resource]
 shader = ExtResource("1_iron")
-shader_parameter/shadow_color = Color(0.14, 0.13, 0.12, 1)
-shader_parameter/mid_color = Color(0.26, 0.24, 0.22, 1)
-shader_parameter/highlight_color = Color(0.42, 0.4, 0.37, 1)
-shader_parameter/sheen_strength = 0.0
+shader_parameter/shadow_color = Color(0.2, 0.2, 0.19, 1)
+shader_parameter/mid_color = Color(0.42, 0.41, 0.39, 1)
+shader_parameter/highlight_color = Color(0.6, 0.58, 0.55, 1)
+shader_parameter/roughness = 0.4

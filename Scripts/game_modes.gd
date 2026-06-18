@@ -59,6 +59,10 @@ static func apply(board, mode_id):
 	board.width = m.get("width", board.width)
 	board.length = m.get("length", board.length)
 	board.three_check = m.get("three_check", false)
+	if m.has("disable_white_castling"): board.disable_white_castling = m["disable_white_castling"]
+	if m.has("disable_black_castling"): board.disable_black_castling = m["disable_black_castling"]
+	if m.has("flip_white_king_queen"): board.flip_white_king_queen = m["flip_white_king_queen"]
+	if m.has("flip_black_king_queen"): board.flip_black_king_queen = m["flip_black_king_queen"]
 	return m.get("variant", "generated")
 
 
@@ -113,9 +117,32 @@ static func apply(board, mode_id):
 #   DABBABARIDER  "one-colour rook" (2-square rook hops)    DD
 #   BUFFALO       knight + camel + zebra                    NCZ
 #
-# Materials (NOT pieces — a flag on any piece): "iron","stone" (uncapturable),
-#   "silver","gold","glass","blood" (visual + economy). Apply via a placement's
-#   "material" key or piece.apply_material(name).
+# A layout/placement cell can be a bare piece enum OR a dict carrying extras:
+#   {"piece": E.MULE, "material": "silver", "modifiers": ["racist", "time1"]}
+#
+# MATERIALS (a per-piece flag; "material" key, or piece.apply_material):
+#   iron, stone                  uncapturable wall — keeps its own movement
+#   silver, gold, glass, blood   normal piece; visual + (future) economy effect
+#
+# MODIFIERS (per-piece rule tags; "modifiers" list, or piece.apply_modifiers).
+# Scaffolded — mechanics WIP:
+#   racist         colourbound: only the square colour it starts on (queen/rook
+#                  family — short queens/rooks, queen variants)
+#   time1 / time2  cooldown: after moving, locked for 1 / 2 full turns
+#   double         may move twice in a row (limit to short-range pieces)
+#   slippery       (a SQUARE effect, planned) piece slips; spend a turn clicking
+#                  it to upright it
+#
+# BOARD / MODE options (keys on a GameModes entry):
+#   width / length        board size (default 8x8; rendering still assumes 8 wide)
+#   layout / placements   starting position (see below)
+#   roster                pieces available (else derived from the placements)
+#   rules                 extra raw variants.ini option lines
+#
+# RULE TOGGLES (mode keys, or @export on the Board node):
+#   three_check                                       win by giving 3 checks
+#   disable_white_castling / disable_black_castling
+#   flip_white_king_queen / flip_black_king_queen     swap the d/e start pieces
 # =====================================================================
 
 # Default starting layout (used when a mode doesn't define its own) — the classic
@@ -125,13 +152,13 @@ static func default_layout():
 	return {
 		"white": {
 			1: [
-				{"piece": E.SHORTROOK, "material": "gold"},
-				{"piece": E.MULE, "material": "iron"},
+				{"piece": E.SHORTROOK, "material": "gold", "modifiers": ["racist", "time1"]},
+				{"piece": E.MULE, "material": "iron", "modifiers": ["double"]},
 				{"piece": E.SHORTBISHOP, "material": "blood"},
 				E.PRINCESS, E.PRINCE,
 				{"piece": E.SHORTBISHOP, "material": "gold"},
 				{"piece": E.MULE, "material": "silver"},
-				E.SHORTROOK,
+				E.ROOK,
 			],
 			2: [{"piece": E.SHORTPAWN, "material": "iron"}, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN],
 		},
