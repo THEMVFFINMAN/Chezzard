@@ -12,7 +12,7 @@ signal nav_buttons_enabled(enabled)
 var started = false
 
 var place_holder_numbers = 0
-var possible_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+var possible_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
 var holding_piece = false
 var held_piece = null
 var last_held_piece = null
@@ -57,6 +57,7 @@ var black_rook_kingside_moved = false
 
 var moves = []
 var redo_moves = []
+var double_pending_piece = null  # a "double" piece between its two moves (null = normal)
 var pending_legal_snapshot = {}
 var undo_steps_remaining = 0
 var redo_steps_remaining = 0
@@ -82,6 +83,8 @@ var player_white
 @export var three_check := false  # win by delivering 3 checks
 # Testing hook: assign materials to squares at startup, e.g. {"d1": "gold"}.
 @export var test_materials := {}
+# Per-game { square -> [modifier names] }, set from the mode's placements.
+var test_modifiers := {}
 
 # 3-check tracking (used only when three_check is on)
 signal three_check_won(white_won)
@@ -317,6 +320,51 @@ func _apply_test_materials():
 		var p = get_piece(sq)
 		if p:
 			p.apply_material(test_materials[sq])
+	for sq in test_modifiers:
+		var p = get_piece(sq)
+		if p:
+			p.apply_modifiers(test_modifiers[sq])
+
+# Game-side modifier move filters, run after legal moves are populated. "racist"
+# (colourbound) keeps a piece to squares of the colour it currently stands on
+# (which is the colour it started on, since it only ever moves same-colour). The
+# engine still sees a normal piece — fine, since the player picks from the
+# filtered set and same-colour moves are a subset of the engine's legal moves.
+func apply_modifier_filters():
+	for group in ["white_pieces", "black_pieces"]:
+		for piece in get_tree().get_nodes_in_group(group):
+			if piece.dead:
+				continue
+			piece.queue_redraw()  # refresh the cooldown/racist overlay
+			if piece.cooldown_until > moves.size():
+				piece.legal_moves = []  # timed piece still on cooldown this turn
+				continue
+			if piece.has_modifier("racist"):
+				_filter_colorbound(piece)
+	# Double: during the second half, only the double piece may move.
+	if double_pending_piece != null:
+		for piece in get_tree().get_nodes_in_group("pieces"):
+			if piece != double_pending_piece:
+				piece.legal_moves = []
+		if double_pending_piece.legal_moves.is_empty():
+			_end_double_turn()  # can't move again -> just end the turn
+
+func _filter_colorbound(piece):
+	if piece.legal_moves.is_empty():
+		return
+	var start_color = _square_color(piece.chess_position)
+	var keep = []
+	for m in piece.legal_moves:
+		if _square_color(m) == start_color:
+			keep.append(m)
+	piece.legal_moves = keep
+
+# Square colour by file+rank parity (independent of any piece on it). Same parity
+# = same colour; that's all the racist modifier needs.
+func _square_color(pos):
+	var file_index = possible_letters.find(pos[0])
+	var rank = int(pos.substr(1, pos.length() - 1))
+	return (file_index + rank) % 2
 
 # Called (deferred) when the engine's perft for the side to move was 0. Wall
 # pieces (stone/iron) are added game-side, so re-check real legal moves before
@@ -504,17 +552,18 @@ func move(previous_chess_position, chess_position):
 		tween.tween_property(piece_to_move, "global_position", second_square.global_position + second_square.get_node("CollisionShape2D").shape.extents, .1)
 		tween.tween_callback(black_moved_piece)
 		
-	if piece_to_move.white:
-		white_to_move = false
-		freeze_white_pieces()
-		if !computer_opponent or !is_computer_turn():
-			unfreeze_black_pieces()
+	# "double" pieces move twice in a row: on the first move keep the turn (and
+	# remember the piece); on the second, flip normally.
+	var is_player_piece = not computer_opponent or piece_to_move.white
+	var double_first = is_player_piece and piece_to_move.has_modifier("double") and double_pending_piece == null
+	var double_second = double_pending_piece == piece_to_move
+	if double_first:
+		double_pending_piece = piece_to_move
 	else:
-		white_to_move = true
-		freeze_black_pieces()
-		if !computer_opponent or !is_computer_turn():
-			unfreeze_white_pieces()
-	
+		if double_second:
+			double_pending_piece = null
+		_flip_turn(piece_to_move.white)
+
 	var record = {
 		"piece": piece_to_move,
 		"from_square": previous_chess_square,
@@ -531,8 +580,23 @@ func move(previous_chess_position, chess_position):
 		"promoted_to": null,  # set by complete_promotion() if this move is a promotion
 		"checks_before": [white_checks, black_checks],
 		"checks_after": [white_checks, black_checks],  # updated by register_check() if this move checks
+		"cooldown_before": piece_to_move.cooldown_until,
+		"cooldown_after": piece_to_move.cooldown_until,  # set below if this piece is timed
 	}
 	moves.append(record)
+
+	# Timed pieces (time1/time2) lock themselves for N of the mover's own turns.
+	for mod in piece_to_move.piece_modifiers:
+		var cd = Globals.MODIFIERS.get(mod, {}).get("cooldown", 0)
+		if cd > 0:
+			piece_to_move.cooldown_until = moves.size() + 2 * cd
+			record["cooldown_after"] = piece_to_move.cooldown_until
+
+	# Tag both halves of a completed double move so undo/redo step over the pair.
+	if double_second:
+		record["double_role"] = "second"
+		if moves.size() >= 2:
+			moves[moves.size() - 2]["double_role"] = "first"
 
 	captured_piece = false
 	set_previous_square(previous_chess_position)
@@ -562,9 +626,41 @@ func move(previous_chess_position, chess_position):
 			
 			
 			
+# Hand the turn to the other side (freeze the mover, unfreeze the opponent unless
+# the AI controls it). Factored out so the double modifier can skip it.
+func _flip_turn(piece_is_white):
+	if piece_is_white:
+		white_to_move = false
+		freeze_white_pieces()
+		if !computer_opponent or !is_computer_turn():
+			unfreeze_black_pieces()
+	else:
+		white_to_move = true
+		freeze_black_pieces()
+		if !computer_opponent or !is_computer_turn():
+			unfreeze_white_pieces()
+
+# A double piece that can't make its second move just ends the turn normally.
+func _end_double_turn():
+	var was_white = double_pending_piece.white
+	double_pending_piece = null
+	_flip_turn(was_white)
+	top_level.send_to_stockfish("position fen " + generate_fen_string())
+	top_level.send_to_stockfish("go depth 10")
+	top_level.send_to_stockfish("eval")
+	top_level.perft()
+
 func _finish_move(prev, cur):
 	# Engine handoff + legal-move refresh for the next turn. Split out of move()
 	# so promotion can run it AFTER a piece is chosen.
+	if double_pending_piece != null:
+		# First half of a double move: keep the turn, re-query the same side's moves
+		# (restricted to this piece in apply_modifier_filters), no AI handoff.
+		for piece in get_tree().get_nodes_in_group("pieces"):
+			piece.legal_moves = []
+		top_level.send_to_stockfish("position fen " + generate_fen_string())
+		top_level.perft()
+		return
 	send_move(prev, cur)
 	for piece in get_tree().get_nodes_in_group("pieces"):
 		piece.legal_moves = []
@@ -657,8 +753,11 @@ func redo():
 		freeze_buttons()
 		freeze_pieces()
 		black_move_counter += 1
-		# Step forward a full move pair (or fewer if there's less to redo).
-		redo_steps_remaining = 2
+		# Step forward a full turn (3 plies if it was a double move, else 2).
+		if redo_moves.back().get("double_role", "") == "first":
+			redo_steps_remaining = 3
+		else:
+			redo_steps_remaining = 2
 		redo_individual_move()
 		
 
@@ -695,8 +794,9 @@ func redo_individual_move():
 	current_square.white = redo_piece.white
 	
 	redo_piece.chess_position = current_square.chess_position
-	
-	
+	redo_piece.cooldown_until = record.get("cooldown_after", redo_piece.cooldown_until)
+
+
 	previous_square.piece_type = redo_piece.piece_type
 
 			
@@ -735,9 +835,15 @@ func undo():
 		freeze_buttons()
 		freeze_pieces()
 		black_move_counter -= 1
-		# Always step back a full move pair (or fewer if the history is shorter),
-		# no matter which colour the human plays.
-		undo_steps_remaining = 2
+		# Step back a full turn: 2 plies normally; 3 if the turn being undone was a
+		# double move (your two moves + the reply); 1 if you're mid-double.
+		if double_pending_piece != null:
+			double_pending_piece = null
+			undo_steps_remaining = 1
+		elif moves.size() >= 2 and moves[moves.size() - 2].get("double_role", "") == "second":
+			undo_steps_remaining = 3
+		else:
+			undo_steps_remaining = 2
 		undo_individual_move()
 	
 func undo_individual_move():
@@ -806,6 +912,7 @@ func undo_individual_move():
 	previous_square.white = undo_piece.white
 	undo_piece.legal_moves = record["piece_legal_moves"]
 	undo_piece.chess_position = record["from_position"]
+	undo_piece.cooldown_until = record.get("cooldown_before", 0)  # un-move resets its timer
 
 	if "-" not in record["en_passant"]:
 		en_passant_square = record["en_passant"]

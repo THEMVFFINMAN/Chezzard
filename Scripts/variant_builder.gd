@@ -199,8 +199,19 @@ static func _cell_placement(cell, sq, white):
 		var p = {"sq": sq, "piece": cell["piece"], "white": white}
 		if cell.get("material", "") != "":
 			p["material"] = cell["material"]
+		if cell.get("modifiers", []).size() > 0:
+			p["modifiers"] = cell["modifiers"]
 		return p
 	return {"sq": sq, "piece": cell, "white": white}
+
+
+# Extract a { square -> modifiers list } map from a placement list.
+static func placements_modifiers(placements):
+	var mods = {}
+	for p in placements:
+		if p.get("modifiers", []).size() > 0:
+			mods[p["sq"]] = p["modifiers"]
+	return mods
 
 
 static func _file_letter(f):

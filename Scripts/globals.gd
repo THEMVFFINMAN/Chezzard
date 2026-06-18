@@ -173,6 +173,19 @@ func get_material_shader(name):
 	return MATERIALS.get(name, null)
 
 
+# --- Modifiers ---
+# A modifier is a per-piece rule tag, separate from material; several can stack
+# on one piece. Applied via a placement/cell "modifiers": [...] key or
+# piece.apply_modifiers(). Mechanics are scaffolded here, not all wired yet.
+const MODIFIERS = {
+	"racist":   {"desc": "colourbound: only the square colour it starts on", "colorbound": true},
+	"time1":    {"desc": "after moving, locked for 1 full turn", "cooldown": 1},
+	"time2":    {"desc": "after moving, locked for 2 full turns", "cooldown": 2},
+	"double":   {"desc": "may move twice in a row (short-range pieces)", "extra_moves": 1},
+	"slippery": {"desc": "(square effect, planned) slips; spend a turn to upright", "square_effect": true},
+}
+
+
 func get_fen_string_from_enum(value, white):
 	var fen_char
 	if _active_enum_to_char.has(value):

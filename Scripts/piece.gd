@@ -30,6 +30,13 @@ var select_promotion_piece = false
 # (Named piece_material to avoid CanvasItem's built-in "material" property.)
 var piece_material = ""
 
+# Modifier rule tags (e.g. "racist", "time1", "double") — separate from material,
+# can stack. See Globals.MODIFIERS. Mechanics are WIP; this records the flags.
+var piece_modifiers = []
+
+# Ply count (board.moves.size()) at/after which a timed piece may move again.
+var cooldown_until = 0
+
 func delete_self():
 	dead_position = global_position
 	dead = true
@@ -69,6 +76,8 @@ func _ready():
 	# Hide leftover debug overlays.
 	get_node("Label").visible = false
 	get_node("Label2").visible = false
+	# Draw modifier overlays (cooldown badge / racist bar) on top of the sprite.
+	get_node("Sprite2D").show_behind_parent = true
 	# Apply the recolor shader for this piece's material (iron pieces get it via
 	# their type even without an explicit material flag set).
 	_apply_material_visual()
@@ -85,6 +94,46 @@ func _apply_material_visual():
 func apply_material(new_material):
 	piece_material = new_material
 	_apply_material_visual()
+
+# Set the piece's modifier tags (accepts a single name or a list).
+func apply_modifiers(mods):
+	piece_modifiers = mods.duplicate() if mods is Array else [mods]
+
+func has_modifier(modifier_name):
+	return modifier_name in piece_modifiers
+
+
+# --- Modifier overlays (rough placeholders; redrawn each turn by the board) ---
+func _draw():
+	# Cooldown badge: black number in a white circle with a black outline. Top-left
+	# for jumpers, top-right otherwise.
+	var turns = _cooldown_turns()
+	if turns > 0:
+		var c = Vector2(-12, -12) if _is_jumper() else Vector2(12, -12)
+		draw_circle(c, 6.0, Color(1, 1, 1))
+		draw_arc(c, 6.0, 0.0, TAU, 24, Color(0, 0, 0), 1.5)
+		draw_string(ThemeDB.fallback_font, c + Vector2(-3, 4), str(turns),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0, 0, 0))
+	# Racist: two bars under the piece, in the colour it can move on.
+	if has_modifier("racist"):
+		var bar = Color(0.95, 0.95, 0.95) if _racist_light() else Color(0.12, 0.12, 0.12)
+		draw_rect(Rect2(-14, 13, 28, 2), bar)
+		draw_rect(Rect2(-14, 16, 28, 2), bar)
+
+func _cooldown_turns():
+	if board == null:
+		return 0
+	var remaining = cooldown_until - board.moves.size()
+	return int((remaining + 1) / 2) if remaining > 0 else 0
+
+func _is_jumper():
+	var E = Globals.Piece_Type_ENUMs
+	return piece_type in [E.KNIGHT, E.CAMEL, E.ZEBRA, E.ALFIL, E.DABBABA, E.GIRAFFE, E.WILDEBEEST, E.BUFFALO, E.KNIGHTRIDER]
+
+func _racist_light():
+	if board == null:
+		return true
+	return board._square_color(chess_position) == 0
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta: float) -> void:
