@@ -28,6 +28,16 @@ enum Piece_Type_ENUMs {
 	PRINCE,
 	STONE,
 	IRONQUEEN,
+	FERZ,
+	ALFIL,
+	DABBABA,
+	GOLDGENERAL,
+	SILVERGENERAL,
+	CAMEL,
+	ZEBRA,
+	WILDEBEEST,
+	DABBABARIDER,
+	BUFFALO,
 	NONE
 }
 
@@ -69,13 +79,55 @@ const PIECE_REGISTRY = {
 	Piece_Type_ENUMs.PRINCE:      {"name": "prince",      "fen": "l", "kind": "custom", "betza": "W", "royal": true},
 	Piece_Type_ENUMs.STONE:       {"name": "stone",       "fen": "o", "kind": "wall", "betza": "WF"},  # uncapturable king-mover (game-side, "*")
 	Piece_Type_ENUMs.IRONQUEEN:   {"name": "queen",       "fen": "v", "kind": "wall", "betza": "Q"},   # uncapturable queen (game-side, "*")
+	# --- Extra fairy pieces. No fixed "fen": letters are assigned dynamically per
+	# roster (so they never burn the 26-letter budget). Each needs sprites — add
+	# white_<name>/black_<name> animations before putting one on the board.
+	Piece_Type_ENUMs.FERZ:          {"name": "ferz",          "kind": "custom", "betza": "F"},        # 1 step diagonal (colorbound)
+	Piece_Type_ENUMs.ALFIL:         {"name": "alfil",         "kind": "custom", "betza": "A"},        # 2-square diagonal jump
+	Piece_Type_ENUMs.DABBABA:       {"name": "dabbaba",       "kind": "custom", "betza": "D"},        # 2-square orthogonal jump
+	Piece_Type_ENUMs.GOLDGENERAL:   {"name": "goldgeneral",   "kind": "custom", "betza": "WfF"},      # shogi gold
+	Piece_Type_ENUMs.SILVERGENERAL: {"name": "silvergeneral", "kind": "custom", "betza": "FfW"},      # shogi silver
+	Piece_Type_ENUMs.CAMEL:         {"name": "camel",         "kind": "custom", "betza": "C"},        # (1,3) leaper (colorbound)
+	Piece_Type_ENUMs.ZEBRA:         {"name": "zebra",         "kind": "custom", "betza": "Z"},        # (2,3) leaper
+	Piece_Type_ENUMs.WILDEBEEST:    {"name": "wildebeest",    "kind": "custom", "betza": "NC"},       # knight + camel
+	Piece_Type_ENUMs.DABBABARIDER:  {"name": "dabbabarider",  "kind": "custom", "betza": "DD"},       # "one-colour rook"
+	Piece_Type_ENUMs.BUFFALO:       {"name": "buffalo",       "kind": "custom", "betza": "NCZ"},      # knight + camel + zebra
 }
 
 var _char_to_enum := {}
+# When a generated roster is active these override the registry defaults so reused
+# letters resolve per-roster. Empty = use registry defaults.
+var _active_enum_to_char := {}
 
 func _ready() -> void:
 	for piece_type in PIECE_REGISTRY:
-		_char_to_enum[PIECE_REGISTRY[piece_type]["fen"]] = piece_type
+		var f = PIECE_REGISTRY[piece_type].get("fen", "")
+		if f != "":
+			_char_to_enum[f] = piece_type
+
+# Swap in a roster's letter assignment (from VariantBuilder) for the current game.
+func set_active_char_map(char_to_enum, enum_to_char):
+	_char_to_enum = char_to_enum
+	_active_enum_to_char = enum_to_char
+
+# Restore the default registry letter map (for static / non-generated variants).
+func reset_char_map():
+	_active_enum_to_char = {}
+	_char_to_enum = {}
+	for piece_type in PIECE_REGISTRY:
+		var f = PIECE_REGISTRY[piece_type].get("fen", "")
+		if f != "":
+			_char_to_enum[f] = piece_type
+
+# The default registry letter for each piece as { enum: letter } — for building
+# positions in canonical letters (static variants / non-generated modes).
+func default_enum_to_char():
+	var m = {}
+	for piece_type in PIECE_REGISTRY:
+		var f = PIECE_REGISTRY[piece_type].get("fen", "")
+		if f != "":
+			m[piece_type] = f
+	return m
 
 
 func give_piece_name_from_piece_type(enum_value):
@@ -122,10 +174,14 @@ func get_material_shader(name):
 
 
 func get_fen_string_from_enum(value, white):
-	if not PIECE_REGISTRY.has(value):
+	var fen_char
+	if _active_enum_to_char.has(value):
+		fen_char = _active_enum_to_char[value]
+	elif PIECE_REGISTRY.has(value):
+		fen_char = PIECE_REGISTRY[value]["fen"]
+	else:
 		print("get fen string from enum error, returned *")
 		return "*"
-	var fen_char = PIECE_REGISTRY[value]["fen"]
 	if white:
 		return fen_char.to_upper()
 	return fen_char

@@ -33,6 +33,7 @@ var board_size = Vector2.ZERO
 var computer_opponent = false
 var player_white = true
 var current_variant = "custom"
+var _variant_path_override = ""  # set when a mode uses a generated variants.ini
 
 
 func _ready():
@@ -82,6 +83,31 @@ func _on_mode_chosen(vs_computer, mode_id, popup):
 	board.computer_opponent = vs_computer
 	board.player_white = true
 	current_variant = GameModes.apply(board, mode_id)  # configure the board, get the variant
+	var m = GameModes.modes().get(mode_id, {})
+	# Resolve the starting placements first, so the roster can be derived from them.
+	var pl
+	if m.has("placements"):
+		pl = m["placements"]
+	else:
+		pl = VariantBuilder.layout_to_placements(m.get("layout", GameModes.default_layout()), board.width)
+	var enum_to_char
+	if m.get("generated", false):
+		# Build a fresh variants.ini from the roster (explicit, else just the pieces
+		# in play + promotion targets — never the whole registry, which would blow
+		# the 26-letter limit). Its letter map is shared with parsing/placements.
+		var roster = m.get("roster", VariantBuilder.roster_for_placements(pl))
+		var build = VariantBuilder.build(roster, board.length, "generated", m.get("rules", []))
+		_variant_path_override = VariantBuilder.write_variant_file(build["text"])
+		current_variant = build["variant"]
+		Globals.set_active_char_map(build["char_to_enum"], build["enum_to_char"])
+		enum_to_char = build["enum_to_char"]
+	else:
+		_variant_path_override = ""
+		Globals.reset_char_map()
+		enum_to_char = Globals.default_enum_to_char()
+	# Position always comes from the layout/placements — never a hardcoded FEN.
+	board.generated_fen_string = VariantBuilder.placements_to_fen(pl, enum_to_char, board.width, board.length)
+	board.test_materials = VariantBuilder.placements_materials(pl)
 	board.build_board()
 	popup.queue_free()
 	_init_engine()
@@ -97,7 +123,8 @@ func _notification(what):
 func _init_engine():
 	is_running = true
 	send_to_stockfish("setoption name Debug Log File value debug.log")
-	send_to_stockfish("setoption name VariantPath value " + _variants_path())
+	var vpath = _variant_path_override if _variant_path_override != "" else _variants_path()
+	send_to_stockfish("setoption name VariantPath value " + vpath)
 	send_to_stockfish("setoption name UCI_Variant value " + current_variant)
 
 	if board.generated_fen_string.length() > 0:

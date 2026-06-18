@@ -24,7 +24,7 @@ var numbers_size = 0
 
 #var generated_fen_string = "rnbqkbnr/pppppppp/8/8/4w3/8/ZZZZZZZZ/SMTULTMS"
 
-var generated_fen_string = "rnbqkbnr/pppppppp/8/8/3w4/8/ZZZOZVZZ/SMTULTMS"
+var generated_fen_string = ""  # set per-game from the mode's layout (GameModes.default_layout)
 
 var board_array : Array
 
@@ -144,23 +144,34 @@ func add_legal_moves_to_pieces(legal_moves):
 # never generates their moves. We add them game-side for the side to move (right
 # after the engine's legal moves). They only step onto empty squares — never
 # capturing.
-func is_wall_piece(type):
-	return type == Globals.Piece_Type_ENUMs.STONE or type == Globals.Piece_Type_ENUMs.IRONQUEEN
+# A piece is an uncapturable "wall" if it has the iron/stone material (works on
+# ANY base piece) or is a legacy STONE/IRONQUEEN type. Walls go to the engine as
+# "*" and the game generates their moves (below).
+func _is_wall_piece(piece):
+	if piece == null:
+		return false
+	if piece.piece_material == "iron" or piece.piece_material == "stone":
+		return true
+	return piece.piece_type == Globals.Piece_Type_ENUMs.STONE or piece.piece_type == Globals.Piece_Type_ENUMs.IRONQUEEN
 
 func add_wall_piece_moves():
 	var group = "white_pieces" if white_to_move else "black_pieces"
 	for piece in get_tree().get_nodes_in_group(group):
-		if piece.dead:
+		if piece.dead or not _is_wall_piece(piece):
 			continue
+		# Legacy dedicated types keep their own movement; otherwise an iron/stone
+		# piece keeps its BASE type's movement.
 		match piece.piece_type:
 			Globals.Piece_Type_ENUMs.STONE:
 				_add_king_step_moves(piece)
 			Globals.Piece_Type_ENUMs.IRONQUEEN:
 				_add_slider_moves(piece, true, true)  # orthogonal + diagonal = queen
+			_:
+				_add_base_type_moves(piece)
 
 # Sliding move generation to empty squares only (stops before any piece, since
 # wall pieces can't capture). orthogonal = rook lines, diagonal = bishop lines.
-func _add_slider_moves(piece, orthogonal, diagonal):
+func _add_slider_moves(piece, orthogonal, diagonal, max_range = 0):
 	var dirs = []
 	if orthogonal:
 		dirs += [[1, 0], [-1, 0], [0, 1], [0, -1]]
@@ -171,11 +182,15 @@ func _add_slider_moves(piece, orthogonal, diagonal):
 	for d in dirs:
 		var nf = file_index
 		var nr = rank
+		var steps = 0
 		while true:
 			nf += d[0]
 			nr += d[1]
+			steps += 1
 			if nf < 0 or nf >= width or nr < 1 or nr > length:
 				break
+			if max_range > 0 and steps > max_range:
+				break  # range-limited slider (shortrook = 4, shortbishop = 3, ...)
 			var target = str(possible_letters[nf]) + str(nr)
 			if get_square(target).has_piece:
 				break  # blocked — can't capture, so stop before the piece
@@ -195,6 +210,106 @@ func _add_king_step_moves(piece):
 			var target = str(possible_letters[nf]) + str(nr)
 			if not get_square(target).has_piece:
 				piece.add_legal_move(target)
+
+# Offset tables for game-side move generation of iron/stone wall pieces.
+const _DIRS_ORTHO := [[1, 0], [-1, 0], [0, 1], [0, -1]]
+const _DIRS_DIAG := [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+const _DIRS_KING := [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+const _OFF_KNIGHT := [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]]
+const _OFF_CAMEL := [[1, 3], [3, 1], [3, -1], [1, -3], [-1, -3], [-3, -1], [-3, 1], [-1, 3]]
+const _OFF_ZEBRA := [[2, 3], [3, 2], [3, -2], [2, -3], [-2, -3], [-3, -2], [-3, 2], [-2, 3]]
+const _OFF_ALFIL := [[2, 2], [2, -2], [-2, 2], [-2, -2]]
+const _OFF_DABBABA := [[2, 0], [-2, 0], [0, 2], [0, -2]]
+const _OFF_GIRAFFE := [[1, 4], [4, 1], [4, -1], [1, -4], [-1, -4], [-4, -1], [-4, 1], [-1, 4]]
+
+# Add a leap to each given offset, onto empty squares only (walls never capture).
+func _add_offset_moves(piece, offsets):
+	var file_index = possible_letters.find(piece.chess_position[0])
+	var rank = int(piece.chess_position.substr(1, piece.chess_position.length() - 1))
+	for o in offsets:
+		var nf = file_index + o[0]
+		var nr = rank + o[1]
+		if nf < 0 or nf >= width or nr < 1 or nr > length:
+			continue
+		var target = str(possible_letters[nf]) + str(nr)
+		if not get_square(target).has_piece:
+			piece.add_legal_move(target)
+
+# One-step-forward generation for iron pawns (no capture, no double-step).
+func _add_pawn_moves(piece):
+	var file_index = possible_letters.find(piece.chess_position[0])
+	var rank = int(piece.chess_position.substr(1, piece.chess_position.length() - 1))
+	var nr = rank + (1 if piece.white else -1)
+	if nr >= 1 and nr <= length:
+		var target = str(possible_letters[file_index]) + str(nr)
+		if not get_square(target).has_piece:
+			piece.add_legal_move(target)
+
+# Generate an iron piece's moves from its BASE type's movement (empty squares
+# only). Riders / shogi generals fall back to a king step for now.
+func _add_base_type_moves(piece):
+	var E = Globals.Piece_Type_ENUMs
+	match piece.piece_type:
+		E.QUEEN, E.EMPRESS:
+			_add_slider_moves(piece, true, true, 0)
+		E.ROOK:
+			_add_slider_moves(piece, true, false, 0)
+		E.BISHOP:
+			_add_slider_moves(piece, false, true, 0)
+		E.SHORTROOK:
+			_add_slider_moves(piece, true, false, 4)
+		E.SHORTBISHOP:
+			_add_slider_moves(piece, false, true, 3)
+		E.PRINCESS:
+			_add_slider_moves(piece, true, false, 4)
+			_add_slider_moves(piece, false, true, 3)
+		E.KING, E.MAN:
+			_add_offset_moves(piece, _DIRS_KING)
+		E.PRINCE:
+			_add_offset_moves(piece, _DIRS_ORTHO)   # wazir
+		E.MULE, E.FERZ:
+			_add_offset_moves(piece, _DIRS_DIAG)    # ferz
+		E.KNIGHT:
+			_add_offset_moves(piece, _OFF_KNIGHT)
+		E.CAMEL:
+			_add_offset_moves(piece, _OFF_CAMEL)
+		E.ZEBRA:
+			_add_offset_moves(piece, _OFF_ZEBRA)
+		E.ALFIL:
+			_add_offset_moves(piece, _OFF_ALFIL)
+		E.DABBABA:
+			_add_offset_moves(piece, _OFF_DABBABA)
+		E.GIRAFFE:
+			_add_offset_moves(piece, _OFF_GIRAFFE)
+		E.WILDEBEEST:
+			_add_offset_moves(piece, _OFF_KNIGHT)
+			_add_offset_moves(piece, _OFF_CAMEL)
+		E.BUFFALO:
+			_add_offset_moves(piece, _OFF_KNIGHT)
+			_add_offset_moves(piece, _OFF_CAMEL)
+			_add_offset_moves(piece, _OFF_ZEBRA)
+		E.ARCHBISHOP:
+			_add_slider_moves(piece, false, true, 0)
+			_add_offset_moves(piece, _OFF_KNIGHT)
+		E.CHANCELLOR:
+			_add_slider_moves(piece, true, false, 0)
+			_add_offset_moves(piece, _OFF_KNIGHT)
+		E.AMAZON:
+			_add_slider_moves(piece, true, true, 0)
+			_add_offset_moves(piece, _OFF_KNIGHT)
+		E.ROYALKNIGHT:
+			_add_offset_moves(piece, _DIRS_KING)
+			_add_offset_moves(piece, _OFF_KNIGHT)
+		E.ROYALBISHOP:
+			_add_offset_moves(piece, _DIRS_KING)
+			_add_slider_moves(piece, false, true, 0)
+		E.ROYALROOK:
+			_add_offset_moves(piece, _DIRS_KING)
+			_add_slider_moves(piece, true, false, 0)
+		E.PAWN, E.SHORTPAWN:
+			_add_pawn_moves(piece)
+		_:
+			_add_offset_moves(piece, _DIRS_KING)    # fallback (riders / shogi generals)
 
 ## Apply test materials (Inspector dict of square -> material name) after setup.
 func _apply_test_materials():
@@ -806,6 +921,12 @@ func set_previous_square(chess_position):
 func generate_fen_string():
 	var fen_string = ""
 	blank_space_counter = 0
+	# Squares holding an uncapturable wall piece (iron/stone material, or a legacy
+	# STONE/IRONQUEEN) are sent to the engine as "*".
+	var wall_at = {}
+	for piece in get_tree().get_nodes_in_group("pieces"):
+		if not piece.dead and _is_wall_piece(piece):
+			wall_at[piece.chess_position] = true
 	for i in range(length):
 		if len(fen_string) > 0:
 			if blank_space_counter > 0:
@@ -821,8 +942,8 @@ func generate_fen_string():
 				if blank_space_counter > 0:
 					fen_string += str(blank_space_counter)
 					blank_space_counter = 0
-				if is_wall_piece(square.piece_type):
-					fen_string += "*"  # stone/iron -> engine wall square (uncapturable, blocks)
+				if wall_at.has(square.chess_position):
+					fen_string += "*"  # iron/stone -> engine wall square (uncapturable, blocks)
 				else:
 					fen_string += Globals.get_fen_string_from_enum(square.piece_type, square.white)
 			elif j == width - 1 and i == length - 1:
