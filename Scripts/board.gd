@@ -96,6 +96,11 @@ var black_checks := 0
 signal game_over(result_text)
 var game_over_emitted := false
 
+# Mode flags (set by GameModes.apply). unroyal: no royalty, win by capturing all
+# enemy pieces. head_of_snake: on checkmate, royalty passes to the next piece.
+var unroyal := false
+var head_of_snake := false
+
 func _enter_tree():
 	# Registered early (before children are ready) so nested nodes can find the
 	# board via the "board" group instead of brittle get_parent() chains.
@@ -374,13 +379,12 @@ func check_game_over(in_check):
 		return
 	if _side_to_move_has_move():
 		return  # a stone/iron piece can still move -> not over
-	var text
-	if not in_check:
-		text = "Draw"  # stalemate
-	elif computer_opponent:
-		text = "You Lose" if white_to_move else "You Win"
-	else:
-		text = "Black Wins" if white_to_move else "White Wins"
+	# Head of Snake only applies to the enemy (the non-player side): whenever their
+	# royal runs out of moves (mate OR stalemate), royalty passes to the next
+	# piece. When YOUR royal is mated you just lose.
+	if head_of_snake and white_to_move != player_white and _crown_next_royal():
+		return  # enemy royalty passed to a new piece — game continues
+	var text = "Draw" if not in_check else _game_over_text(white_to_move)
 	game_over_emitted = true
 	emit_signal("game_over", text)
 
@@ -390,6 +394,70 @@ func _side_to_move_has_move():
 		if not piece.dead and piece.legal_moves.size() > 0:
 			return true
 	return false
+
+# Game-over text from the loser's colour (player perspective vs the AI, or hot-seat).
+func _game_over_text(white_loses):
+	if computer_opponent:
+		return "You Lose" if white_loses else "You Win"
+	return "Black Wins" if white_loses else "White Wins"
+
+# Unroyal: a side with no pieces left has lost (you win by capturing everything).
+func _check_unroyal_win():
+	if game_over_emitted:
+		return false
+	for white in [true, false]:
+		var grp = "white_pieces" if white else "black_pieces"
+		var alive = false
+		for p in get_tree().get_nodes_in_group(grp):
+			if not p.dead:
+				alive = true
+				break
+		if not alive:
+			game_over_emitted = true
+			emit_signal("game_over", _game_over_text(white))
+			return true
+	return false
+
+# Head of Snake: the mated royal disappears and royalty passes to the next piece,
+# scanning the mated side's back rank forward. False if no piece is left to crown.
+func _crown_next_royal():
+	var white = white_to_move  # the checkmated side (to move, no legal moves)
+	var old_royal = _find_royal(white)
+	if old_royal != null:
+		get_square(old_royal.chess_position).has_piece = false
+		old_royal.delete_self()
+	var next = _next_crownable(white)
+	if next == null:
+		return false
+	next.piece_type = Globals.Piece_Type_ENUMs.KING
+	next.get_node("Sprite2D").play(("white_" if white else "black_") + "king")
+	get_square(next.chess_position).piece_type = Globals.Piece_Type_ENUMs.KING
+	for p in get_tree().get_nodes_in_group("pieces"):
+		p.legal_moves = []
+	# Re-sync and hand the turn back to the enemy so its new head actually plays.
+	top_level.send_to_stockfish("position fen " + generate_fen_string())
+	top_level.send_to_stockfish("go depth 10")
+	top_level.send_to_stockfish("eval")
+	top_level.perft()
+	return true
+
+func _find_royal(white):
+	var grp = "white_pieces" if white else "black_pieces"
+	for p in get_tree().get_nodes_in_group(grp):
+		if not p.dead and (p.piece_type == Globals.Piece_Type_ENUMs.PRINCE or p.piece_type == Globals.Piece_Type_ENUMs.KING):
+			return p
+	return null
+
+func _next_crownable(white):
+	var ranks = range(1, length + 1) if white else range(length, 0, -1)
+	for r in ranks:
+		for f in range(width):
+			var p = get_piece(str(possible_letters[f]) + str(r))
+			if p != null and not p.dead and p.white == white \
+					and p.piece_type != Globals.Piece_Type_ENUMs.PRINCE \
+					and p.piece_type != Globals.Piece_Type_ENUMs.KING:
+				return p
+	return null
 
 
 func conduct_castling_checks(piece_to_move, previous_chess_position, chess_position):
@@ -653,6 +721,8 @@ func _end_double_turn():
 func _finish_move(prev, cur):
 	# Engine handoff + legal-move refresh for the next turn. Split out of move()
 	# so promotion can run it AFTER a piece is chosen.
+	if unroyal and _check_unroyal_win():
+		return
 	if double_pending_piece != null:
 		# First half of a double move: keep the turn, re-query the same side's moves
 		# (restricted to this piece in apply_modifier_filters), no AI handoff.

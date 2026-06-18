@@ -28,6 +28,7 @@ static func modes():
 
 
 static func _build_modes():
+	var E = Globals.Piece_Type_ENUMs
 	return {
 		"standard": {
 			"name": "Standard",
@@ -46,6 +47,53 @@ static func _build_modes():
 			"name": "King of the Hill",
 			"variant": "customkoth",
 		},
+		# No royalty (a MAN stands in for the king); win by capturing every enemy
+		# piece. Extinction rules also tell the engine the goal.
+		"unroyal": {
+			"name": "Unroyal (capture all)",
+			"generated": true,
+			"unroyal": true,
+			"rules": ["extinctionValue = loss", "extinctionPieceTypes = *", "extinctionPieceCount = 0"],
+			"layout": {
+				"white": {
+					1: [E.ROOK, E.KNIGHT, E.BISHOP, E.QUEEN, E.MAN, E.BISHOP, E.KNIGHT, E.ROOK],
+					2: E.PAWN,
+				},
+				"black": {
+					8: [E.ROOK, E.KNIGHT, E.BISHOP, E.QUEEN, E.MAN, E.BISHOP, E.KNIGHT, E.ROOK],
+					7: E.PAWN,
+				},
+			},
+		},
+		# Normal royal rules, but on checkmate royalty passes to the next piece
+		# (back rank forward) instead of ending the game.
+		"head_of_snake": {
+			"name": "Head of Snake",
+			"generated": true,
+			"head_of_snake": true,
+		},
+		# Double King: a side with its flag set gets TWO royal princes (the 2nd on c,
+		# replacing the queenside bishop); a side without it keeps a single king.
+		# royal_count = 2 means a double-king side loses if EITHER king dies. Edit
+		# the two booleans to set white / black independently.
+		"double_king": {
+			"name": "Double King",
+			"generated": true,
+			"royal_count": 2,
+			"layout": _double_king_layout(true, false),  # (white_double, black_double)
+		},
+	}
+
+
+# Double King layout: two princes (c + e) for a side whose flag is set, otherwise
+# a single king on e with a normal queenside bishop.
+static func _double_king_layout(white_double, black_double):
+	var E = Globals.Piece_Type_ENUMs
+	var double_back = [E.SHORTROOK, E.MULE, E.PRINCE, E.PRINCESS, E.PRINCE, E.SHORTBISHOP, E.MULE, E.SHORTROOK]
+	var single_back = [E.SHORTROOK, E.MULE, E.SHORTBISHOP, E.PRINCESS, E.KING, E.SHORTBISHOP, E.MULE, E.SHORTROOK]
+	return {
+		"white": {1: double_back if white_double else single_back, 2: E.SHORTPAWN},
+		"black": {8: double_back if black_double else single_back, 7: E.SHORTPAWN},
 	}
 
 
@@ -59,6 +107,8 @@ static func apply(board, mode_id):
 	board.width = m.get("width", board.width)
 	board.length = m.get("length", board.length)
 	board.three_check = m.get("three_check", false)
+	board.unroyal = m.get("unroyal", false)
+	board.head_of_snake = m.get("head_of_snake", false)
 	if m.has("disable_white_castling"): board.disable_white_castling = m["disable_white_castling"]
 	if m.has("disable_black_castling"): board.disable_black_castling = m["disable_black_castling"]
 	if m.has("flip_white_king_queen"): board.flip_white_king_queen = m["flip_white_king_queen"]

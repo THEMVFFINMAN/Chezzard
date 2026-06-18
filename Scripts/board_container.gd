@@ -96,7 +96,7 @@ func _on_mode_chosen(vs_computer, mode_id, popup):
 		# in play + promotion targets — never the whole registry, which would blow
 		# the 26-letter limit). Its letter map is shared with parsing/placements.
 		var roster = m.get("roster", VariantBuilder.roster_for_placements(pl))
-		var build = VariantBuilder.build(roster, board.length, "generated", m.get("rules", []))
+		var build = VariantBuilder.build(roster, board.length, "generated", m.get("rules", []), m.get("royal_count", 1))
 		_variant_path_override = VariantBuilder.write_variant_file(build["text"])
 		current_variant = build["variant"]
 		Globals.set_active_char_map(build["char_to_enum"], build["enum_to_char"])
@@ -181,6 +181,8 @@ func _on_engine_line(line: String) -> void:
 
 	if line.begins_with("bestmove"):
 		if computer_opponent and board.is_computer_turn():
+			if line.split(" ")[1] == "(none)":
+				return  # no legal move (mate/stalemate) — game-over/cascade handles it
 			thread_timer.start()
 			await thread_timer.timeout
 
