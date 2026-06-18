@@ -96,6 +96,7 @@ var black_checks := 0
 signal game_over(result_text)
 var game_over_emitted := false
 var win_awarded := false  # economy: win reward paid once per battle
+var player_won := false  # set at game over: did the player (white) win?
 var _glass_breaking = null  # a glass piece that rolled to shatter after capturing
 
 # Mode flags (set by GameModes.apply). unroyal: no royalty, win by capturing all
@@ -434,7 +435,8 @@ func _award_win_once(winner_white):
 	if win_awarded:
 		return
 	win_awarded = true
-	if winner_white == player_white:
+	player_won = (winner_white == player_white)
+	if player_won:
 		RunState.add_gold(50 + 10 * RunState.floor, "win")
 
 # Unroyal: a side with no pieces left has lost (you win by capturing everything).

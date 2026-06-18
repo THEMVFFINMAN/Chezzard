@@ -1,0 +1,71 @@
+[gd_scene format=3 uid="uid://b8shopchezzard01"]
+
+[ext_resource type="Script" path="res://Scripts/shop.gd" id="1_shop"]
+
+[node name="Shop" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_shop")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.07, 0.1, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Shop"
+horizontal_alignment = 1
+
+[node name="FloorLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="GoldLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Offers" type="VBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NextSep" type="HSeparator" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="NextFloor" type="Button" parent="CenterContainer/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(320, 48)
+layout_mode = 2
+text = "Next Floor →"
+
+[connection signal="pressed" from="CenterContainer/Panel/Margin/VBox/NextFloor" to="." method="_on_next_floor_pressed"]
