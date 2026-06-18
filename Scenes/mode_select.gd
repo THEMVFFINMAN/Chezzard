@@ -2,6 +2,8 @@ extends CanvasLayer
 
 # Emitted when the player starts a game: which opponent + which game mode id.
 signal mode_chosen(vs_computer, mode_id)
+# Emitted when the player starts the roguelike run (army + 10-floor climb).
+signal start_run
 
 @onready var mode_option = $CenterContainer/Panel/VBox/ModeOption
 
@@ -26,3 +28,7 @@ func _on_human_pressed() -> void:
 
 func _on_computer_pressed() -> void:
 	mode_chosen.emit(true, _selected_mode())
+
+
+func _on_start_run_pressed() -> void:
+	start_run.emit()

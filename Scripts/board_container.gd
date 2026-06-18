@@ -42,7 +42,7 @@ func _ready():
 	regex.compile(regex_moves_pattern)
 
 	board = get_node("Board")
-	board.game_over.connect(_show_game_over)
+	board.game_over.connect(_on_game_over)
 	board.three_check_won.connect(_on_three_check_won)
 
 	engine = EngineBridge.new()
@@ -52,38 +52,104 @@ func _ready():
 	engine.start()
 
 	get_tree().set_auto_accept_quit(false)
+	_setup_gold_hud()
 
-	# Ask who the opponent is before booting the game.
-	_show_mode_select()
+	# In a run, jump straight into the current floor; otherwise pick a mode.
+	if RunState.in_run:
+		_start_run_battle()
+	else:
+		_show_mode_select()
+
+
+func _exit_tree():
+	stop_stockfish()  # stop the engine on scene change (battle <-> shop)
+
+
+# Floating "Floor X/10 — Gold: N" counter, shown only during a run.
+func _setup_gold_hud():
+	if not RunState.in_run:
+		return
+	var layer = CanvasLayer.new()
+	var label = Label.new()
+	label.position = Vector2(16, 12)
+	label.add_theme_font_size_override("font_size", 22)
+	add_child(layer)
+	layer.add_child(label)
+	var refresh = func(total): label.text = "Floor %d/%d   Gold: %d" % [RunState.floor, RunState.FLOOR_COUNT, total]
+	refresh.call(RunState.gold)
+	RunState.gold_changed.connect(refresh)
 
 
 func _show_mode_select():
 	var popup = MODE_SELECT_SCENE.instantiate()
 	add_child(popup)
 	popup.mode_chosen.connect(_on_mode_chosen.bind(popup))
+	popup.start_run.connect(_on_start_run.bind(popup))
 
 
-func _show_game_over(text):
+func _on_start_run(popup):
+	popup.queue_free()
+	RunState.start_run()
+	# Reload so the gold HUD / run routing in _ready pick up the fresh run state.
+	get_tree().reload_current_scene()
+
+
+func _show_popup(text):
 	var popup = GAME_OVER_SCENE.instantiate()
 	add_child(popup)
 	popup.set_result(text)
 
 
+func _on_game_over(text):
+	_finish_game(board.player_won, text)
+
+
 func _on_three_check_won(white_won):
+	var text
 	if computer_opponent:
-		_show_game_over("You Win" if white_won else "You Lose")
+		text = "You Win" if white_won else "You Lose"
 	else:
-		_show_game_over("White Wins" if white_won else "Black Wins")
+		text = "White Wins" if white_won else "Black Wins"
+	_finish_game(board.player_won, text)
+
+
+# End of a battle: in a run, advance to the shop / next floor (or end the run);
+# otherwise just the normal game-over popup.
+func _finish_game(won, text):
+	if not RunState.in_run:
+		_show_popup(text)
+		return
+	if won:
+		RunState.advance()
+		if RunState.is_complete():
+			RunState.in_run = false
+			_show_popup("Run Complete! You beat the Wizard.")
+		else:
+			get_tree().change_scene_to_file("res://Scenes/shop.tscn")
+	else:
+		RunState.in_run = false
+		_show_popup("Run Over — Floor %d" % RunState.floor)
 
 
 func _on_mode_chosen(vs_computer, mode_id, popup):
-	# You always start as white. Human = you control both colours; Computer = AI plays black.
+	current_variant = GameModes.apply(board, mode_id)  # board flags + static variant name
+	popup.queue_free()
+	_configure_and_start(GameModes.modes().get(mode_id, {}), vs_computer)
+
+
+# Start the current run floor: your army vs the floor's enemy, always vs the AI.
+func _start_run_battle():
+	var m = RunState.current_battle()
+	current_variant = GameModes.apply_config(board, m)
+	_configure_and_start(m, true)
+
+
+# Build and launch a battle from a mode/battle config dict.
+func _configure_and_start(m, vs_computer):
 	computer_opponent = vs_computer
 	player_white = true
 	board.computer_opponent = vs_computer
 	board.player_white = true
-	current_variant = GameModes.apply(board, mode_id)  # configure the board, get the variant
-	var m = GameModes.modes().get(mode_id, {})
 	# Resolve the starting placements first, so the roster can be derived from them.
 	var pl
 	if m.has("placements"):
@@ -93,8 +159,7 @@ func _on_mode_chosen(vs_computer, mode_id, popup):
 	var enum_to_char
 	if m.get("generated", false):
 		# Build a fresh variants.ini from the roster (explicit, else just the pieces
-		# in play + promotion targets — never the whole registry, which would blow
-		# the 26-letter limit). Its letter map is shared with parsing/placements.
+		# in play + promotion targets). Its letter map is shared with parsing.
 		var roster = m.get("roster", VariantBuilder.roster_for_placements(pl))
 		var build = VariantBuilder.build(roster, board.length, "generated", m.get("rules", []), m.get("royal_count", 1))
 		_variant_path_override = VariantBuilder.write_variant_file(build["text"])
@@ -110,7 +175,6 @@ func _on_mode_chosen(vs_computer, mode_id, popup):
 	board.test_materials = VariantBuilder.placements_materials(pl)
 	board.test_modifiers = VariantBuilder.placements_modifiers(pl)
 	board.build_board()
-	popup.queue_free()
 	_init_engine()
 
 

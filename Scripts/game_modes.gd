@@ -101,7 +101,11 @@ static func _double_king_layout(white_double, black_double):
 # select. (The roster/layout/variant-file are handled in board_container, where
 # the build result is available.)
 static func apply(board, mode_id):
-	var m = modes().get(mode_id, modes()["standard"])
+	return apply_config(board, modes().get(mode_id, modes()["standard"]))
+
+
+# Apply a mode/battle config dict's flags to the board; returns the variant name.
+static func apply_config(board, m):
 	if m.has("fen") and m["fen"] != "":
 		board.generated_fen_string = m["fen"]
 	board.width = m.get("width", board.width)

@@ -52,5 +52,14 @@ custom_minimum_size = Vector2(180, 44)
 layout_mode = 2
 text = "Computer (AI)"
 
+[node name="RunSep" type="HSeparator" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+
+[node name="StartRun" type="Button" parent="CenterContainer/Panel/VBox"]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+text = "Start Run (Roguelike)"
+
 [connection signal="pressed" from="CenterContainer/Panel/VBox/Human" to="." method="_on_human_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBox/Computer" to="." method="_on_computer_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBox/StartRun" to="." method="_on_start_run_pressed"]
