@@ -165,14 +165,13 @@ func _is_wall_piece(piece):
 		return true
 	return piece.piece_type == Globals.Piece_Type_ENUMs.STONE or piece.piece_type == Globals.Piece_Type_ENUMs.IRONQUEEN
 
-# in_check: the side to move is in check (from the engine eval). Wall/iron pieces
-# are inert blockers — they can't capture and don't move the king, so they can
-# never resolve a check. Suppressing their moves while in check makes checkmate
-# actually be checkmate (you can't ignore the check by shuffling an iron piece),
-# and stalemate is unaffected (wall moves are only dropped when actually checked).
+# in_check: the side to move is in check (from the engine eval). A wall/iron piece
+# can't capture and can't move the king, so the ONLY way it can resolve a check is
+# by interposing on the checking line (_check_block_squares). We keep only wall
+# moves that land on one — so an iron piece can still block a sliding check, but
+# can't ignore a knight/double check (no block squares) or shuffle to escape.
 func add_wall_piece_moves(in_check = false):
-	if in_check:
-		return
+	var block_squares = _check_block_squares() if in_check else {}
 	var group = "white_pieces" if white_to_move else "black_pieces"
 	for piece in get_tree().get_nodes_in_group(group):
 		if piece.dead or not _is_wall_piece(piece):
@@ -186,6 +185,130 @@ func add_wall_piece_moves(in_check = false):
 				_add_slider_moves(piece, true, true)  # orthogonal + diagonal = queen
 			_:
 				_add_base_type_moves(piece)
+		if in_check:
+			var keep = []
+			for m in piece.legal_moves:
+				if block_squares.has(m):
+					keep.append(m)  # only interpositions resolve the check
+			piece.legal_moves = keep
+
+# Squares where the side to move can interpose against a check. Computed
+# geometrically (NOT from the engine's legal moves) because the engine sees iron as
+# a wall and wouldn't report an iron-only block — the very case we want to allow.
+# Single sliding check -> the empty squares between king and checker; knight check,
+# adjacent check, or double check -> empty (nothing can block).
+func _check_block_squares():
+	var king = _find_royal(white_to_move)
+	if king == null:
+		return {}
+	var enemy_group = "black_pieces" if white_to_move else "white_pieces"
+	var checkers = []
+	for p in get_tree().get_nodes_in_group(enemy_group):
+		if not p.dead and _attacks(p, king.chess_position):
+			checkers.append(p)
+	if checkers.size() != 1:
+		return {}  # double check (or unclassified) -> can't block
+	return _between_squares(king.chess_position, checkers[0].chess_position)
+
+# Does `piece` attack `target` (movement + blocking, ignoring check legality)? Used
+# to find the checker. Enemy walls are "*" to the engine and never give check.
+func _attacks(piece, target):
+	if _is_wall_piece(piece):
+		return false
+	var pf = possible_letters.find(piece.chess_position[0])
+	var pr = int(piece.chess_position.substr(1, piece.chess_position.length() - 1))
+	var tf = possible_letters.find(target[0])
+	var tr = int(target.substr(1, target.length() - 1))
+	var df = tf - pf
+	var dr = tr - pr
+	if df == 0 and dr == 0:
+		return false
+	var adf = abs(df)
+	var adr = abs(dr)
+	var ranges = _slide_ranges(piece.piece_type)
+	if (df == 0 or dr == 0) and ranges[0] >= max(adf, adr) and _ray_clear(piece.chess_position, target):
+		return true
+	if adf == adr and ranges[1] >= adf and _ray_clear(piece.chess_position, target):
+		return true
+	for o in _leap_offsets(piece.piece_type):
+		if df == o[0] and dr == o[1]:
+			return true
+	if piece.piece_type == Globals.Piece_Type_ENUMs.PAWN or piece.piece_type == Globals.Piece_Type_ENUMs.SHORTPAWN:
+		if dr == (1 if piece.white else -1) and adf == 1:
+			return true
+	return false
+
+# [orthogonal range, diagonal range] for sliders/steppers (0 = doesn't slide that
+# way, 99 = unlimited). King-type steps are range 1. Leapers use _leap_offsets.
+func _slide_ranges(t):
+	var E = Globals.Piece_Type_ENUMs
+	match t:
+		E.ROOK, E.CHANCELLOR: return [99, 0]
+		E.BISHOP, E.ARCHBISHOP: return [0, 99]
+		E.QUEEN, E.EMPRESS, E.AMAZON: return [99, 99]
+		E.ROYALROOK: return [99, 1]
+		E.ROYALBISHOP: return [1, 99]
+		E.SHORTROOK: return [4, 0]
+		E.SHORTBISHOP: return [0, 3]
+		E.PRINCESS: return [4, 3]
+		E.KING, E.MAN, E.STONE, E.ROYALKNIGHT: return [1, 1]
+		E.PRINCE: return [1, 0]
+		E.MULE, E.FERZ: return [0, 1]
+		_: return [0, 0]
+
+# Leap offsets [df, dr] for jumpers (and the jumping component of compounds).
+func _leap_offsets(t):
+	var E = Globals.Piece_Type_ENUMs
+	match t:
+		E.KNIGHT, E.ARCHBISHOP, E.CHANCELLOR, E.AMAZON, E.ROYALKNIGHT, E.KNIGHTRIDER:
+			return _OFF_KNIGHT
+		E.CAMEL: return _OFF_CAMEL
+		E.ZEBRA: return _OFF_ZEBRA
+		E.ALFIL: return _OFF_ALFIL
+		E.DABBABA, E.DABBABARIDER: return _OFF_DABBABA
+		E.GIRAFFE: return _OFF_GIRAFFE
+		E.WILDEBEEST: return _OFF_KNIGHT + _OFF_CAMEL
+		E.BUFFALO: return _OFF_KNIGHT + _OFF_CAMEL + _OFF_ZEBRA
+		_: return []
+
+# True if every square strictly between `from_sq` and `to_sq` (along a line) is empty.
+func _ray_clear(from_sq, to_sq):
+	var ff = possible_letters.find(from_sq[0])
+	var fr = int(from_sq.substr(1, from_sq.length() - 1))
+	var tf = possible_letters.find(to_sq[0])
+	var tr = int(to_sq.substr(1, to_sq.length() - 1))
+	var sf = sign(tf - ff)
+	var sr = sign(tr - fr)
+	var nf = ff + sf
+	var nr = fr + sr
+	while nf != tf or nr != tr:
+		if get_square(str(possible_letters[nf]) + str(nr)).has_piece:
+			return false
+		nf += sf
+		nr += sr
+	return true
+
+# Empty squares strictly between two squares on a rook/bishop line (else {} — a
+# knight/adjacent checker can't be interposed).
+func _between_squares(a, b):
+	var af = possible_letters.find(a[0])
+	var ar = int(a.substr(1, a.length() - 1))
+	var bf = possible_letters.find(b[0])
+	var br = int(b.substr(1, b.length() - 1))
+	var df = bf - af
+	var dr = br - ar
+	if not (df == 0 or dr == 0 or abs(df) == abs(dr)):
+		return {}
+	var sf = sign(df)
+	var sr = sign(dr)
+	var result = {}
+	var nf = af + sf
+	var nr = ar + sr
+	while nf != bf or nr != br:
+		result[str(possible_letters[nf]) + str(nr)] = true
+		nf += sf
+		nr += sr
+	return result
 
 # Sliding move generation to empty squares only (stops before any piece, since
 # wall pieces can't capture). orthogonal = rook lines, diagonal = bishop lines.
