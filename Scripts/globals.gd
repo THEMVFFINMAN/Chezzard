@@ -31,47 +31,56 @@ enum Piece_Type_ENUMs {
 	NONE
 }
 
-# Single source of truth for every piece: its display name and its (lower-case)
-# FEN character. The reverse lookup (char -> enum) is derived from this in
-# _ready(), so the mappings can never drift out of sync.
-const PIECE_INFO = {
-	Piece_Type_ENUMs.PAWN:        {"name": "pawn",        "fen": "p"},
-	Piece_Type_ENUMs.BISHOP:      {"name": "bishop",      "fen": "b"},
-	Piece_Type_ENUMs.KNIGHT:      {"name": "knight",      "fen": "n"},
-	Piece_Type_ENUMs.ROOK:        {"name": "rook",        "fen": "r"},
-	Piece_Type_ENUMs.QUEEN:       {"name": "queen",       "fen": "q"},
-	Piece_Type_ENUMs.KING:        {"name": "king",        "fen": "k"},
-	Piece_Type_ENUMs.ARCHBISHOP:  {"name": "archbishop",  "fen": "a"},
-	Piece_Type_ENUMs.GIRAFFE:     {"name": "giraffe",     "fen": "g"},
-	Piece_Type_ENUMs.SHORTROOK:   {"name": "shortrook",   "fen": "s"},
-	Piece_Type_ENUMs.SHORTBISHOP: {"name": "shortbishop", "fen": "t"},
-	Piece_Type_ENUMs.SHORTPAWN:   {"name": "shortpawn",   "fen": "z"},
-	Piece_Type_ENUMs.MULE:        {"name": "mule",        "fen": "m"},
-	Piece_Type_ENUMs.CHANCELLOR:  {"name": "chancellor",  "fen": "e"},
-	Piece_Type_ENUMs.ROYALKNIGHT: {"name": "royalknight", "fen": "c"},
-	Piece_Type_ENUMs.ROYALBISHOP: {"name": "royalbishop", "fen": "h"},
-	Piece_Type_ENUMs.ROYALROOK:   {"name": "royalrook",   "fen": "i"},
-	Piece_Type_ENUMs.MAN:         {"name": "man",         "fen": "f"},
-	Piece_Type_ENUMs.KNIGHTRIDER: {"name": "knightrider", "fen": "d"},
-	Piece_Type_ENUMs.AMAZON:      {"name": "amazon",      "fen": "x"},
-	Piece_Type_ENUMs.PRINCESS:    {"name": "princess",    "fen": "u"},
-	Piece_Type_ENUMs.WALL:        {"name": "wall",        "fen": "w"},
-	Piece_Type_ENUMs.EMPRESS:     {"name": "empress",     "fen": "j"},
-	Piece_Type_ENUMs.PRINCE:      {"name": "prince",      "fen": "l"},
-	Piece_Type_ENUMs.STONE:       {"name": "stone",       "fen": "o"},  # king-mover, uncapturable
-	Piece_Type_ENUMs.IRONQUEEN:   {"name": "queen",       "fen": "v"},  # moves as queen, uncapturable (queen sprite for now)
+# Master piece registry: the single source of truth for every piece type. Used
+# both by the live game (name + default FEN letter) and by VariantBuilder, which
+# generates a fresh variants.ini for a chosen roster from "kind"/"betza".
+#
+#   kind:  standard = inherited from the chess parent (fixed letter, not emitted)
+#          builtin  = a Fairy-Stockfish built-in, emitted as "<builtin> = <letter>"
+#          custom   = emitted as "customPieceN = <letter>:<betza>"
+#          immobile = the wall blocker, emitted as "immobile = <letter>"
+#          wall     = game-side-only piece (sent to the engine as a "*" wall), so
+#                     it is NEVER emitted into the variant
+#   flags: pawn (promotion/en-passant pawn type), promote (promotion target),
+#          royal (the pseudo-royal piece whose extinction loses the game)
+const PIECE_REGISTRY = {
+	Piece_Type_ENUMs.PAWN:        {"name": "pawn",        "fen": "p", "kind": "standard", "pawn": true},
+	Piece_Type_ENUMs.BISHOP:      {"name": "bishop",      "fen": "b", "kind": "standard", "promote": true},
+	Piece_Type_ENUMs.KNIGHT:      {"name": "knight",      "fen": "n", "kind": "standard", "promote": true},
+	Piece_Type_ENUMs.ROOK:        {"name": "rook",        "fen": "r", "kind": "standard", "promote": true},
+	Piece_Type_ENUMs.QUEEN:       {"name": "queen",       "fen": "q", "kind": "standard", "promote": true},
+	Piece_Type_ENUMs.KING:        {"name": "king",        "fen": "k", "kind": "standard"},
+	Piece_Type_ENUMs.ARCHBISHOP:  {"name": "archbishop",  "fen": "a", "kind": "builtin", "builtin": "archbishop"},
+	Piece_Type_ENUMs.GIRAFFE:     {"name": "giraffe",     "fen": "g", "kind": "custom", "betza": "G"},
+	Piece_Type_ENUMs.SHORTROOK:   {"name": "shortrook",   "fen": "s", "kind": "custom", "betza": "R4"},
+	Piece_Type_ENUMs.SHORTBISHOP: {"name": "shortbishop", "fen": "t", "kind": "custom", "betza": "B3"},
+	Piece_Type_ENUMs.SHORTPAWN:   {"name": "shortpawn",   "fen": "z", "kind": "custom", "betza": "fmWfceF", "pawn": true},
+	Piece_Type_ENUMs.MULE:        {"name": "mule",        "fen": "m", "kind": "custom", "betza": "F"},
+	Piece_Type_ENUMs.CHANCELLOR:  {"name": "chancellor",  "fen": "e", "kind": "builtin", "builtin": "chancellor"},
+	Piece_Type_ENUMs.ROYALKNIGHT: {"name": "royalknight", "fen": "c", "kind": "builtin", "builtin": "centaur", "promote": true},
+	Piece_Type_ENUMs.ROYALBISHOP: {"name": "royalbishop", "fen": "h", "kind": "custom", "betza": "WFB"},
+	Piece_Type_ENUMs.ROYALROOK:   {"name": "royalrook",   "fen": "i", "kind": "custom", "betza": "WFR"},
+	Piece_Type_ENUMs.MAN:         {"name": "man",         "fen": "f", "kind": "custom", "betza": "WF"},
+	Piece_Type_ENUMs.KNIGHTRIDER: {"name": "knightrider", "fen": "d", "kind": "custom", "betza": "NN"},
+	Piece_Type_ENUMs.AMAZON:      {"name": "amazon",      "fen": "x", "kind": "builtin", "builtin": "amazon"},
+	Piece_Type_ENUMs.PRINCESS:    {"name": "princess",    "fen": "u", "kind": "custom", "betza": "R4B3"},
+	Piece_Type_ENUMs.WALL:        {"name": "wall",        "fen": "w", "kind": "immobile"},
+	Piece_Type_ENUMs.EMPRESS:     {"name": "empress",     "fen": "j", "kind": "custom", "betza": "Q"},
+	Piece_Type_ENUMs.PRINCE:      {"name": "prince",      "fen": "l", "kind": "custom", "betza": "W", "royal": true},
+	Piece_Type_ENUMs.STONE:       {"name": "stone",       "fen": "o", "kind": "wall", "betza": "WF"},  # uncapturable king-mover (game-side, "*")
+	Piece_Type_ENUMs.IRONQUEEN:   {"name": "queen",       "fen": "v", "kind": "wall", "betza": "Q"},   # uncapturable queen (game-side, "*")
 }
 
 var _char_to_enum := {}
 
 func _ready() -> void:
-	for piece_type in PIECE_INFO:
-		_char_to_enum[PIECE_INFO[piece_type]["fen"]] = piece_type
+	for piece_type in PIECE_REGISTRY:
+		_char_to_enum[PIECE_REGISTRY[piece_type]["fen"]] = piece_type
 
 
 func give_piece_name_from_piece_type(enum_value):
-	if PIECE_INFO.has(enum_value):
-		return PIECE_INFO[enum_value]["name"]
+	if PIECE_REGISTRY.has(enum_value):
+		return PIECE_REGISTRY[enum_value]["name"]
 	return ""
 
 
@@ -113,10 +122,10 @@ func get_material_shader(name):
 
 
 func get_fen_string_from_enum(value, white):
-	if not PIECE_INFO.has(value):
+	if not PIECE_REGISTRY.has(value):
 		print("get fen string from enum error, returned *")
 		return "*"
-	var fen_char = PIECE_INFO[value]["fen"]
+	var fen_char = PIECE_REGISTRY[value]["fen"]
 	if white:
 		return fen_char.to_upper()
 	return fen_char
