@@ -283,7 +283,9 @@ func _on_engine_line(line: String) -> void:
 	if line.begins_with("Nodes searched"):
 		if not promotion:
 			board.call_deferred("add_legal_moves_to_pieces", legal_moves.duplicate())
-			board.call_deferred("add_wall_piece_moves")
+			# Suppress iron/wall moves while the side to move is in check — they can't
+			# resolve a check, so allowing them would let you ignore checkmate.
+			board.call_deferred("add_wall_piece_moves", side_in_check)
 			board.call_deferred("apply_modifier_filters")
 			if line == "Nodes searched: 0":
 				# No engine moves; re-check after wall moves are added, then end.

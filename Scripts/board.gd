@@ -165,7 +165,14 @@ func _is_wall_piece(piece):
 		return true
 	return piece.piece_type == Globals.Piece_Type_ENUMs.STONE or piece.piece_type == Globals.Piece_Type_ENUMs.IRONQUEEN
 
-func add_wall_piece_moves():
+# in_check: the side to move is in check (from the engine eval). Wall/iron pieces
+# are inert blockers — they can't capture and don't move the king, so they can
+# never resolve a check. Suppressing their moves while in check makes checkmate
+# actually be checkmate (you can't ignore the check by shuffling an iron piece),
+# and stalemate is unaffected (wall moves are only dropped when actually checked).
+func add_wall_piece_moves(in_check = false):
+	if in_check:
+		return
 	var group = "white_pieces" if white_to_move else "black_pieces"
 	for piece in get_tree().get_nodes_in_group(group):
 		if piece.dead or not _is_wall_piece(piece):
