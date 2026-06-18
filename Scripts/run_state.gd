@@ -71,11 +71,13 @@ func _army_layout():
 	return out
 
 
+# Start small ("half everything"): the royal prince, a couple of pieces, and four
+# pawns. The shop builds you up from here.
 func _default_army():
 	var E = Globals.Piece_Type_ENUMs
 	return {
-		1: [E.SHORTROOK, E.MULE, E.SHORTBISHOP, E.PRINCESS, E.PRINCE, E.SHORTBISHOP, E.MULE, E.SHORTROOK],
-		2: [E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN],
+		1: [E.SHORTROOK, E.MULE, E.SHORTBISHOP, E.PRINCE, null, null, null, null],
+		2: [E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, E.SHORTPAWN, null, null, null, null],
 	}
 
 
@@ -92,7 +94,11 @@ func _floor_config(f):
 	elif f >= 4:
 		cfg["enemy"] = {8: [E.ROOK, E.KNIGHT, null, E.QUEEN, E.KING, null, E.KNIGHT, E.ROOK], 7: E.PAWN}
 	else:
-		cfg["enemy"] = {8: [null, E.KNIGHT, null, null, E.KING, null, E.KNIGHT, null], 7: E.PAWN}
+		# Early floors: a weak "dwarf" army — king, queen, two bishops, four pawns.
+		cfg["enemy"] = {
+			8: [null, E.BISHOP, null, E.QUEEN, E.KING, E.BISHOP, null, null],
+			7: [null, E.PAWN, null, E.PAWN, E.PAWN, E.PAWN, null, null],
+		}
 	return cfg
 
 
