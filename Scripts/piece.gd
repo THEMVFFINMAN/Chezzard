@@ -37,6 +37,9 @@ var piece_modifiers = []
 # Ply count (board.moves.size()) at/after which a timed piece may move again.
 var cooldown_until = 0
 
+# The square this piece started the battle on — its slot in the run army.
+var origin = ""
+
 func delete_self():
 	dead_position = global_position
 	dead = true

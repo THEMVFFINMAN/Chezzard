@@ -95,6 +95,8 @@ var black_checks := 0
 # board_container listens and shows the game-over popup.
 signal game_over(result_text)
 var game_over_emitted := false
+var win_awarded := false  # economy: win reward paid once per battle
+var _glass_breaking = null  # a glass piece that rolled to shatter after capturing
 
 # Mode flags (set by GameModes.apply). unroyal: no royalty, win by capturing all
 # enemy pieces. head_of_snake: on checkmate, royalty passes to the next piece.
@@ -384,8 +386,13 @@ func check_game_over(in_check):
 	# piece. When YOUR royal is mated you just lose.
 	if head_of_snake and white_to_move != player_white and _crown_next_royal():
 		return  # enemy royalty passed to a new piece — game continues
-	var text = "Draw" if not in_check else _game_over_text(white_to_move)
+	# Stalemate is a draw — except in head-of-snake, where reaching here means a
+	# side is truly finished (mated and out of heads, or the player mated).
+	var draw = (not in_check) and not head_of_snake
+	var text = "Draw" if draw else _game_over_text(white_to_move)
 	game_over_emitted = true
+	if not draw:
+		_award_win_once(not white_to_move)  # the side to move lost
 	emit_signal("game_over", text)
 
 func _side_to_move_has_move():
@@ -401,6 +408,35 @@ func _game_over_text(white_loses):
 		return "You Lose" if white_loses else "You Win"
 	return "Black Wins" if white_loses else "White Wins"
 
+# --- Economy ---
+# Capture bonus: the captured piece's value scaled by the CAPTURER's material
+# multiplier (gold/silver/blood/glass). Only the player's own captures pay out.
+# A glass capturer may then shatter (rolled here, applied in move()).
+func _award_capture(capturer, captured):
+	if capturer == null or captured == null or capturer.white != player_white:
+		return
+	var eff = Globals.MATERIAL_EFFECTS.get(capturer.piece_material, {})
+	RunState.add_gold(int(round(Globals.piece_value(captured.piece_type) * eff.get("money_mult", 1.0))), "capture")
+	if eff.get("break_chance", 0.0) > 0.0 and randf() < eff["break_chance"]:
+		_glass_breaking = capturer
+
+# Blood: when one of YOUR blood pieces is captured it's lost PERMANENTLY from the
+# run army (recorded for the next battle's rebuild). It is not royal — losing it
+# does not end the battle; it just dies normally and never comes back this run.
+func _on_blood_death(captured):
+	if captured == null or captured.white != player_white:
+		return
+	if Globals.MATERIAL_EFFECTS.get(captured.piece_material, {}).get("lose_on_loss", false):
+		RunState.lose_piece(captured.origin)
+
+# Win reward: the primary, mode-agnostic income — paid once when YOU win.
+func _award_win_once(winner_white):
+	if win_awarded:
+		return
+	win_awarded = true
+	if winner_white == player_white:
+		RunState.add_gold(50 + 10 * RunState.floor, "win")
+
 # Unroyal: a side with no pieces left has lost (you win by capturing everything).
 func _check_unroyal_win():
 	if game_over_emitted:
@@ -414,6 +450,7 @@ func _check_unroyal_win():
 				break
 		if not alive:
 			game_over_emitted = true
+			_award_win_once(not white)  # this side has no pieces -> the other won
 			emit_signal("game_over", _game_over_text(white))
 			return true
 	return false
@@ -568,8 +605,10 @@ func register_check(by_white):
 	if moves.size() > 0:
 		moves[moves.size() - 1]["checks_after"] = [white_checks, black_checks]
 	if white_checks >= 3:
+		_award_win_once(true)
 		three_check_won.emit(true)
 	elif black_checks >= 3:
+		_award_win_once(false)
 		three_check_won.emit(false)
 		
 func move(previous_chess_position, chess_position):
@@ -594,7 +633,11 @@ func move(previous_chess_position, chess_position):
 	var en_passant_undo_check = check_en_passant()
 	
 	if second_square.has_piece:
-		get_piece(chess_position).delete_self()
+		var captured = get_piece(chess_position)
+		if captured != null:
+			_award_capture(piece_to_move, captured)
+			_on_blood_death(captured)
+			captured.delete_self()
 		captured_piece = true
 	second_square.has_piece = true
 	second_square.piece_type = piece_to_move.piece_type
@@ -673,10 +716,19 @@ func move(previous_chess_position, chess_position):
 		get_square(move).get_node("CollisionShape2D").disabled = true
 		get_square(move).get_node("premove").visible = false
 		
+	# Glass: a piece that just captured may shatter (break_chance, default 25%).
+	var broke = false
+	if _glass_breaking == piece_to_move:
+		_glass_breaking = null
+		record["glass_broke"] = true
+		get_square(chess_position).has_piece = false
+		piece_to_move.delete_self()
+		broke = true
+
 	# A pawn reaching the last rank must promote. Defer the engine handoff until a
 	# piece is chosen — a pawn sitting on the last rank is an illegal position the
 	# engine would reject.
-	if (piece_to_move.piece_type == Globals.Piece_Type_ENUMs.PAWN or piece_to_move.piece_type == Globals.Piece_Type_ENUMs.SHORTPAWN) and _is_promotion_rank(chess_position, piece_to_move.white):
+	if not broke and (piece_to_move.piece_type == Globals.Piece_Type_ENUMs.PAWN or piece_to_move.piece_type == Globals.Piece_Type_ENUMs.SHORTPAWN) and _is_promotion_rank(chess_position, piece_to_move.white):
 		pending_promotion = {"pawn": piece_to_move, "prev": previous_chess_position, "cur": chess_position, "record": record}
 		# Clear legal moves so no other piece can be picked up while choosing.
 		for p in get_tree().get_nodes_in_group("pieces"):
@@ -926,6 +978,9 @@ func undo_individual_move():
 	
 
 	var undo_piece = record["piece"]
+	if record.get("glass_broke", false):  # un-shatter a glass piece on undo
+		undo_piece.dead = false
+		captured_pieces.erase(undo_piece)
 	var previous_square = record["from_square"]
 	var current_square = record["to_square"]
 	var previous_global_position = record["from_global_position"]
@@ -1302,6 +1357,7 @@ func make_piece_from_string(piece_char, chess_position):
 	animation_string += Globals.give_piece_name_from_piece_type(new_piece.piece_type)
 	new_piece.get_node("Sprite2D").play(animation_string)
 	new_piece.chess_position = chess_position
+	new_piece.origin = chess_position  # its slot in the run army (for permanent loss)
 		
 	new_piece.global_position = get_square(chess_position).global_position + get_square(chess_position).get_node("CollisionShape2D").shape.extents
 	
