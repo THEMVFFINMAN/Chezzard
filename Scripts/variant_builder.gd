@@ -66,14 +66,27 @@ static func build(roster, board_length = 8, variant_name = "generated", rules = 
 			promote += letter
 		if info.get("pawn", false):
 			pawns += letter
-		if info.get("royal", false):
-			royal = letter
+		# Every royal piece type in the roster is registered as pseudo-royal — NOT just
+		# the last one. Armies routinely mix royal types (you play a prince, the enemy a
+		# king), and each side's royalty must be engine-enforced or the engine won't see
+		# that side's checks/mate. extinctionPseudoRoyal makes these king-like, and the
+		# loss condition is per-side over the royal types that side actually owns, so a
+		# shared "extinctionPieceTypes = lk" doesn't make a king-only side "extinct" for
+		# lacking a prince.
+		if info.get("royal", false) and letter not in royal:
+			royal += letter
 
 	if royal != "":
 		lines.append("extinctionValue = loss")
 		lines.append("extinctionPseudoRoyal = true")
 		lines.append("extinctionPieceTypes = " + royal)
-		# Lose when you drop below this many royals — 2 = "lose if either king dies".
+		# With extinctionPseudoRoyal the count-based loss is skipped (position.cpp:2763);
+		# instead a side's royal pieces are treated as kings it must keep safe, and a
+		# type registers as pseudo-royal for a side while it holds <= count+1 of them
+		# (position.cpp:608). So royal_count is "max royals a side keeps": 1 for a
+		# normal king/prince, 2 for a double king (both must survive). This handles
+		# mixed armies (prince vs king) per-side — neither side is punished for lacking
+		# the other's royal type.
 		lines.append("extinctionPieceCount = " + str(royal_count))
 	if promote != "":
 		lines.append("promotionPieceTypes = " + promote)
