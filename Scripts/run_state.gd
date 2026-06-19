@@ -11,6 +11,7 @@ var floor := 0
 var in_run := false
 var lost_origins := []     # army start-squares lost permanently (e.g. blood deaths)
 var army := {}             # persistent white layout { rank: [cells] }
+var relics := []           # owned relic ids (run-wide passives, see Globals.RELICS)
 
 
 func start_run():
@@ -18,12 +19,24 @@ func start_run():
 	floor = 1
 	gold = 0
 	lost_origins = []
+	relics = []
 	army = _default_army()
 	gold_changed.emit(gold)
 
 
 func advance():
 	floor += 1
+	if has_relic("war_chest"):
+		add_gold(15, "war_chest")
+
+
+func has_relic(id):
+	return id in relics
+
+
+func add_relic(id):
+	if id not in relics:
+		relics.append(id)
 
 
 func is_complete():
