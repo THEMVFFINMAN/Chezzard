@@ -553,8 +553,14 @@ func _award_capture(capturer, captured):
 	if capturer == null or captured == null or capturer.white != player_white:
 		return
 	var eff = Globals.MATERIAL_EFFECTS.get(capturer.piece_material, {})
-	RunState.add_gold(int(round(Globals.piece_value(captured.piece_type) * eff.get("money_mult", 1.0))), "capture")
-	if eff.get("break_chance", 0.0) > 0.0 and randf() < eff["break_chance"]:
+	var amount = int(round(Globals.piece_value(captured.piece_type) * eff.get("money_mult", 1.0)))
+	if RunState.has_relic("bloodstone"):
+		amount += 2  # Bloodstone relic: flat bonus per capture
+	RunState.add_gold(amount, "capture")
+	var break_chance = eff.get("break_chance", 0.0)
+	if RunState.has_relic("glassblower"):
+		break_chance = 0.0  # Glassblower's Gloves relic: glass never shatters
+	if break_chance > 0.0 and randf() < break_chance:
 		_glass_breaking = capturer
 
 # Blood: when one of YOUR blood pieces is captured it's lost PERMANENTLY from the
@@ -581,7 +587,10 @@ func _award_win_once(winner_white):
 	win_awarded = true
 	player_won = (winner_white == player_white)
 	if player_won:
-		RunState.add_gold(50 + 10 * RunState.floor, "win")
+		var amount = 50 + 10 * RunState.floor
+		if RunState.has_relic("merchants_scale"):
+			amount = int(round(amount * 1.5))  # Merchant's Scale relic
+		RunState.add_gold(amount, "win")
 
 # Unroyal: a side with no pieces left has lost (you win by capturing everything).
 func _check_unroyal_win():

@@ -214,6 +214,44 @@ const MODIFIERS = {
 }
 
 
+# --- Relics ---
+# A relic is a run-wide passive, owned once (RunState.relics). Effects are read at
+# the relevant hook (economy in board.gd, war_chest in RunState.advance).
+const RELICS = {
+	"merchants_scale": {"name": "Merchant's Scale",     "desc": "+50% gold from wins",      "cost": 60},
+	"bloodstone":      {"name": "Bloodstone",           "desc": "+2 gold per capture",      "cost": 50},
+	"glassblower":     {"name": "Glassblower's Gloves", "desc": "Glass pieces never break", "cost": 70},
+	"war_chest":       {"name": "War Chest",            "desc": "+15 gold each floor",      "cost": 55},
+}
+
+
+# --- Piece transformations ---
+# The shop can upgrade a piece to a stronger type (keeping its material/modifiers).
+# Maps a base type to its "next tier". Cost is derived from the value gained.
+func piece_upgrade(piece_type):
+	var E = Piece_Type_ENUMs
+	var ups = {
+		E.SHORTPAWN: E.PAWN,
+		E.SHORTROOK: E.ROOK,
+		E.SHORTBISHOP: E.BISHOP,
+		E.MULE: E.KNIGHT,
+		E.KNIGHT: E.KNIGHTRIDER,
+		E.BISHOP: E.ARCHBISHOP,
+		E.ROOK: E.CHANCELLOR,
+		E.PRINCESS: E.QUEEN,
+		E.PAWN: E.MAN,
+	}
+	return ups.get(piece_type, null)
+
+
+# Gold cost to transform `piece_type` into its upgrade (scales with value gained).
+func upgrade_cost(piece_type):
+	var target = piece_upgrade(piece_type)
+	if target == null:
+		return 0
+	return max(25, (piece_value(target) - piece_value(piece_type)) * 12)
+
+
 func get_fen_string_from_enum(value, white):
 	var fen_char
 	if _active_enum_to_char.has(value):
