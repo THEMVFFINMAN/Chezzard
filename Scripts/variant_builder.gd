@@ -18,7 +18,7 @@ extends RefCounted
 const POOL = "abcdefghijklmnopqrstuvwxyz"
 
 
-static func build(roster, board_length = 8, variant_name = "generated", rules = [], royal_count = 1):
+static func build(roster, board_length = 8, variant_name = "generated", rules = [], royal_count = 1, board_width = 8):
 	var enum_to_char = {}
 	var char_to_enum = {}
 	var used = {}
@@ -43,6 +43,23 @@ static func build(roster, board_length = 8, variant_name = "generated", rules = 
 
 	# Emit the variant section.
 	var lines = ["[" + variant_name + ":chess]"]
+	if board_length != 8 or board_width != 8:
+		lines.append("maxRank = " + str(board_length))
+		lines.append("maxFile = " + str(board_width))
+	# "[name:chess]" inherits the FULL parent variant object, literal KING
+	# included, before any of our lines below are applied -- just never
+	# placing a king in the roster/FEN does NOT remove it from the engine's
+	# piece-type set. That matters because Fairy-Stockfish flatly refuses to
+	# combine literal KING with blastOnCapture (parser.cpp: "Can not use
+	# kings with blastOnCapture") -- almost certainly why the original Atomic
+	# mode drew instantly on start. The real fix is "king = -" (confirmed
+	# against the engine's own bundled variants.ini, which uses exactly this
+	# to strip an inherited king), parsed via the same per-standard-piece
+	# loop that lets "king = <letter>" ADD one -- an empty/dash value REMOVES
+	# it instead. Emit it whenever the roster has no literal king (e.g.
+	# Atomic-style modes using PSEUDOKING as the royal stand-in).
+	if Globals.Piece_Type_ENUMs.KING not in roster:
+		lines.append("king = -")
 	var custom_n = 0
 	var promote = ""
 	var pawns = ""
@@ -87,10 +104,22 @@ static func build(roster, board_length = 8, variant_name = "generated", rules = 
 		# normal king/prince, 2 for a double king (both must survive). This handles
 		# mixed armies (prince vs king) per-side — neither side is punished for lacking
 		# the other's royal type.
-		lines.append("extinctionPieceCount = " + str(royal_count))
+		# BUT: blastOnCapture re-enables the count-based check the comment above
+		# says is skipped (position.cpp:2763's "!extinctionPseudoRoyal ||
+		# blast_on_capture()"), and THAT check has no "+1" buffer -- it reads
+		# "count <= extinctionPieceCount" as literally extinct. Emitting
+		# royal_count there (1 for a normal single king) means "extinct while
+		# holding 1 or fewer," which is already true at the normal starting
+		# count -- an instant loss for both sides before move one (confirmed:
+		# this is what broke The Bomber). The count-based check always means
+		# "zero remaining," for any royal_count, so it needs 0 specifically
+		# when blastOnCapture is active, never royal_count.
+		var has_blast_on_capture = rules.any(func(r): return "blastOnCapture" in r)
+		lines.append("extinctionPieceCount = " + str(0 if has_blast_on_capture else royal_count))
 	if promote != "":
 		lines.append("promotionPieceTypes = " + promote)
 	lines.append("promotionRegionWhite = *" + str(board_length))
+	lines.append("promotionRegionBlack = *1")
 	if pawns != "":
 		lines.append("promotionPawnTypes = " + pawns)
 		lines.append("enPassantTypes = " + pawns)
@@ -127,7 +156,19 @@ static func roster_for_placements(placements):
 	for p in placements:
 		roster[p["piece"]] = true
 	for e in Globals.PIECE_REGISTRY:
-		if Globals.PIECE_REGISTRY[e].get("promote", false):
+		# Exclude "royal" promotion targets (e.g. ROYALKNIGHT) from this
+		# auto-added filler set -- build()'s royal-registration loop reads
+		# the "royal" flag off every piece in the roster, so blanket-adding
+		# one here would register it in extinctionPieceTypes too, even
+		# though zero of them are actually on the board. Normally harmless
+		# (position.cpp skips the count-based extinction check entirely
+		# under extinctionPseudoRoyal), but it re-enables itself the moment
+		# blastOnCapture is also set, and a permanently-zero-count required
+		# type reads as "already extinct" -- an instant, pre-move-one loss
+		# for both sides (confirmed: this is what broke The Bomber). A mode
+		# that actually wants a royal promotion target should add it via an
+		# explicit "roster" override instead of relying on this filler.
+		if Globals.PIECE_REGISTRY[e].get("promote", false) and not Globals.PIECE_REGISTRY[e].get("royal", false):
 			roster[e] = true
 	return roster.keys()
 

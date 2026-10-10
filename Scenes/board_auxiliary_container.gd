@@ -22,3 +22,10 @@ func _on_undo_button_down() -> void:
 
 func _on_redo_button_down() -> void:
 	board.redo()
+
+
+func _on_menu_button_down() -> void:
+	# Leaving mid-game abandons the run (if any), same as a loss already does,
+	# rather than leaving it in a half-finished dangling state.
+	RunState.in_run = false
+	get_tree().reload_current_scene()

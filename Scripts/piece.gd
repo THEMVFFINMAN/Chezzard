@@ -40,6 +40,11 @@ var cooldown_until = 0
 # The square this piece started the battle on — its slot in the run army.
 var origin = ""
 
+# Brittle curse stage, set/cleared by board.gd (0 = not targeted, 1 = mild
+# warning, 2 = severe warning, about to shatter). Placeholder ring art until
+# there's real iconography for this.
+var brittle_stage = 0
+
 func delete_self():
 	dead_position = global_position
 	dead = true
@@ -108,6 +113,13 @@ func has_modifier(modifier_name):
 
 # --- Modifier overlays (rough placeholders; redrawn each turn by the board) ---
 func _draw():
+	# Royal glow: a soft gold ring behind/around any piece that's actually
+	# royal (King, Prince, Pseudoking, and the Royal Knight/Bishop/Rook/Queen
+	# compounds) -- without this there's no way to tell "a Bishop with King
+	# Movement on it" (now genuinely royal) apart from a plain stat-boosted
+	# piece just by looking at the board. Placeholder until there's real art.
+	if Globals.PIECE_REGISTRY.get(piece_type, {}).get("royal", false):
+		draw_arc(Vector2.ZERO, 17.0, 0.0, TAU, 32, Color(1, 0.85, 0.2, 0.9), 2.5)
 	# Cooldown badge: black number in a white circle with a black outline. Top-left
 	# for jumpers, top-right otherwise.
 	var turns = _cooldown_turns()
@@ -122,6 +134,25 @@ func _draw():
 		var bar = Color(0.95, 0.95, 0.95) if _racist_light() else Color(0.12, 0.12, 0.12)
 		draw_rect(Rect2(-14, 13, 28, 2), bar)
 		draw_rect(Rect2(-14, 16, 28, 2), bar)
+	# Petrify: a "P" badge -- turns into a wall the instant it captures.
+	# Placeholder until there's real icon art.
+	if has_modifier("petrify"):
+		_draw_badge(Vector2(12, -12), "P")
+	# Atomic: an "A" badge -- capturing blows up itself + adjacent non-pawns.
+	# Placeholder until there's real icon art.
+	if has_modifier("atomic"):
+		_draw_badge(Vector2(12, -12), "A")
+	# Zombie: a "Z" badge -- demotes one rung down the ladder instead of
+	# dying, if captured while not currently a pawn. Placeholder until
+	# there's real icon art.
+	if has_modifier("zombie"):
+		_draw_badge(Vector2(12, -12), "Z")
+	# Brittle curse: a warning ring, amber (1 turn left) then red and thicker
+	# (last chance before it shatters). Placeholder until there's real art.
+	if brittle_stage == 1:
+		draw_arc(Vector2.ZERO, 15.0, 0.0, TAU, 32, Color(1, 0.7, 0, 1), 2.0)
+	elif brittle_stage == 2:
+		draw_arc(Vector2.ZERO, 15.0, 0.0, TAU, 32, Color(1, 0.1, 0.1, 1), 3.0)
 
 # A small number badge: black text in a white circle with a black outline.
 func _draw_badge(c, text):

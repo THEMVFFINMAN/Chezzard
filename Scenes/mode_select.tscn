@@ -37,6 +37,48 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(180, 36)
 layout_mode = 2
 
+[node name="KingsRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 8
+
+[node name="WhiteLabel" type="Label" parent="CenterContainer/Panel/VBox/KingsRow"]
+layout_mode = 2
+text = "White kings:"
+
+[node name="WhiteKings" type="SpinBox" parent="CenterContainer/Panel/VBox/KingsRow"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+min_value = 1
+max_value = 3
+value = 1
+
+[node name="BlackLabel" type="Label" parent="CenterContainer/Panel/VBox/KingsRow"]
+layout_mode = 2
+text = "Black kings:"
+
+[node name="BlackKings" type="SpinBox" parent="CenterContainer/Panel/VBox/KingsRow"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+min_value = 1
+max_value = 3
+value = 1
+
+[node name="SnakeRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 8
+
+[node name="WhiteSnake" type="CheckBox" parent="CenterContainer/Panel/VBox/SnakeRow"]
+layout_mode = 2
+button_pressed = true
+text = "White snakes"
+
+[node name="BlackSnake" type="CheckBox" parent="CenterContainer/Panel/VBox/SnakeRow"]
+layout_mode = 2
+button_pressed = true
+text = "Black snakes"
+
 [node name="Label" type="Label" parent="CenterContainer/Panel/VBox"]
 layout_mode = 2
 text = "Play against:"
@@ -60,6 +102,12 @@ custom_minimum_size = Vector2(180, 44)
 layout_mode = 2
 text = "Start Run (Roguelike)"
 
+[node name="TestShop" type="Button" parent="CenterContainer/Panel/VBox"]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+text = "Test Shop (debug)"
+
 [connection signal="pressed" from="CenterContainer/Panel/VBox/Human" to="." method="_on_human_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBox/Computer" to="." method="_on_computer_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBox/StartRun" to="." method="_on_start_run_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBox/TestShop" to="." method="_on_test_shop_pressed"]
