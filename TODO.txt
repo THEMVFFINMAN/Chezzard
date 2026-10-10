@@ -1,39 +1,273 @@
-
+FIXED (2026-10, playtesting round)
+Check detection was fundamentally broken for basically the whole game, not
+  just Three Check: the normal move path (board._finish_move) never sent the
+  engine an "eval" command, only two rare special-case paths did (double-move
+  end, head-of-snake crowning) -- so board_container.side_in_check almost
+  never updated after a real move. This silently broke THREE things from one
+  root cause: Three Check's register_check (only triggered off the eval "(in
+  check)" line -- never fired), iron/stone/wall pieces moving freely with no
+  in-check restriction (add_wall_piece_moves(side_in_check) always got a
+  stale/false value), and ordinary checkmate-vs-stalemate detection in EVERY
+  mode (check_game_over's draw/mate split uses the same stale value). This is
+  almost certainly why a queen capturing a king didn't end the game --
+  nothing was forcing a response to check in the first place. Fixed by
+  sending "eval" before every "go perft 1" (move() main path, double-move
+  path, and undo_done()).
+GameModes.default_layout() (the fallback for Standard/Three Check/Atomic/
+  KOTH/Head of Snake) used the short-rook/mule/princess/prince roster with
+  gold/iron/blood/silver/glass materials and racist/time1/double modifiers --
+  that was roguelike-run test scaffolding, not meant for these "normal chess
+  + one rule" modes. Reverted to plain standard chess for both sides. The
+  actual run is untouched -- it comes from RunState._default_army(), a
+  completely separate thing.
+Game-over popup's button now says "Main Menu" (it always functionally
+  reloaded to mode-select, including after every run-ending result -- just
+  mislabeled "Play Again" before). Added a "Menu" button next to Undo/Redo
+  for leaving mid-game too (abandons the run, if any, same as a loss would).
+Board was pinned near the left edge at any window size other than the one it
+  was hand-positioned for: board.tscn's MarginContainer was anchor_left=0
+  with an absolute pixel offset, not actually centered -- only looked right
+  by coincidence in the editor's default preview size. Fixed to a real
+  centered anchor (preset 8) so it centers at any resolution.
 
 
 NEGATIVE
-black can't castle
-blocked squares - generate a custom piece that can't move or be captured?\
-Short rook 
-Short Pawn
-Queen off color
-Dead square/ iron piece
-Slippery squares, have to click to reset piece
+Queen off color (mechanism exists via "racist" modifier + queen/princess, but
+  racist isn't purchasable in the shop yet and no layout pairs it with a queen)
+Slippery squares, have to click to reset piece (modifier entry exists, no
+  square-effect logic behind it)
 
 
 PLAYER PLUS
-Standard fairy pieces
-Upgrade bishop/knight to rook
-extra pawn
-undo
-knight riders
-timed chess pieces that can go again after a cooldown
-move twice in a row
-
-MONEY PIECES
-Silver double money
-gold triple money
-glass quadruple money, chance to break
-blood money triple money but lose forever if you lose the piece
+Sprites + roster wiring for the remaining fairy pieces: ferz, alfil, dabbaba,
+  goldgeneral, silvergeneral, zebra, wildebeest, dabbabarider, buffalo
+  (movement already works once a sprite + roster slot exists)
+BACKPAWN (backwards-moving pawn) is coded and in the registry (Globals.
+  Piece_Type_ENUMs.BACKPAWN, betza "fbmWfceFifmnD") but has NO sprite yet --
+  needs white_backpawn/black_backpawn art before it's usable on a real board.
+Extra pawn as a shop offer (no "add a piece to an empty army slot" shop
+  mechanic exists yet — current shop only upgrades pieces already on the board)
+Timed pieces that can go again after a cooldown (distinct from "double" —
+  double is immediate-twice, this would be delayed-reuse after sitting out)
+Brittle curse (board.brittle_curse) is fully implemented — rotating 3-turn
+  cycle, mild/severe warning rings, shatters an un-moved random non-royal
+  player piece — but nothing turns it on yet. Needs a real trigger: a shop
+  offer, a relic, a specific floor/boss ability, etc. Also needs real icon
+  art; current warning rings in piece.gd are placeholder draw_arc() calls.
 
 
 BOARD CHANGES
-king of the hill
-horde
-3 check 
-small board
-longer board
-head of snake, convert other pieces to the king after checkmate
-Unroyal, take all pieces
-White double king
+Atomic game mode removed (2026-10) -- it went straight to a draw on start,
+  root cause not yet diagnosed. Replaced with a different idea: "atomic
+  pieces" -- a material/piece flag (like iron/stone or the new Petrified
+  mechanic) that blows up adjacent non-pawn pieces on capture, rather than a
+  whole-game mode. Not built yet.
+Board length is now a real, working selectable mode (Long Board / Short
+  Board, 10/6 long, still 8 wide) -- three real bugs had to be fixed first,
+  not just a flag flip: VariantBuilder never emitted maxRank/maxFile at all;
+  board.gd's initiate_board() had width and length crossed on every axis
+  (pixel sizing, square position, AND the chess_position file/rank math) --
+  it only ever looked right because both were always 8; and black's (non-
+  960) castling rook squares were hardcoded to literal rank 8. Width changes
+  (narrower boards cutting the rook corners, wider ones adding files) are
+  NOT tested yet -- only length was exercised. flip_white/black_king_queen
+  also still assumes exactly 8 ranks (_apply_starting_flips) and will
+  silently no-op on a non-8-length board; untouched, since neither new mode
+  uses it.
+Other native Fairy-Stockfish variants, same effort tier as Atomic/KOTH (just a
+  mode entry + a layout, confirmed in variant.cpp, no new pieces/sprites):
+  Antichess/Giveaway (forced captures, win by losing everything), Losers
+  (win by getting checkmated), Amazon Chess (queen -> amazon, already has a
+  sprite), Nightrider Chess (knights -> knightriders, already has a sprite)
+Verify King of the Hill's AND the new King Race mode's win detection actually
+  fires correctly (not just "Draw") when the flag square/rank is reached.
+  The general checkmate-vs-draw bug (side_in_check never updating, see FIXED
+  above) is resolved, but a flag-reached win is a DIFFERENT engine-side path
+  (is_immediate_game_end's flag rule, not check/checkmate) and still hasn't
+  been confirmed to surface correctly through board.check_game_over() --
+  play a game to the hill/to rank 8 and confirm it declares a winner.
+Petrified needs real visual feedback -- a petrified piece just hard-swaps to
+  the plain wall sprite with no transition/effect. Also still uses the
+  engine-blind "WALL piece type" approach (good enough per instruction), not
+  Fairy-Stockfish's native petrifyOnCaptureTypes mechanic -- fine for now,
+  but worth knowing it's a client-side approximation, not the real variant.
+Lopsided Kings (formerly Double King) is now N-vs-M (1-3 each side,
+  independent) -- edit white_king_count/black_king_count at the top of
+  GameModes._build_modes().
 
+
+RUN / DIFFICULTY (new, 2026-10)
+Ask the player's self-rated ELO at run start; scale floor difficulty up to it,
+  with the Wizard landing in a random band around it (e.g. +-100). Fairy-
+  Stockfish already supports this via UCI_LimitStrength + UCI_Elo (500-2850) —
+  just needs wiring into board_container._init_engine() in place of the
+  current hardcoded "Skill Level 0", plus a start-of-run prompt and a per-
+  floor curve.
+Decide floor-enemy structure: leaning fixed hand-authored enemies per floor
+  (current approach, just more floors) rather than a random pool, since a
+  hand-tuned difficulty curve is easier to keep coherent than a random draw —
+  randomness stays in the shop/relics. Wizard stays the fixed final boss
+  either way.
+
+
+ENEMY PRESENTATION (new, 2026-10)
+Distinct visual theming per enemy army (e.g. a goblin horde actually drawn as
+  goblins) instead of every army reusing the same shared piece sprites. Needs
+  either new sprite sheets per theme or a recolor-shader approach like
+  materials.
+
+
+BOSS ROSTER (new, 2026-10 -- levels, not "bosses")
+These are enemy levels in the run, not special end-fights -- 10 floors
+  planned, one themed enemy per floor, each backed by a mechanic we already
+  have or have scoped out, not just a flavor name on a generic AI. Unroyal
+  (hunt-down-the-last-piece) was cut from the roster entirely -- not fun
+  enough -- but its win-check code (board._check_unroyal_win) stays, since
+  Goblin Horde depends on the exact same mechanism for its win condition.
+  Antichess/forced-capture was considered and rejected outright (not just
+  renamed) -- no slot for it.
+  1. Hamlet King      -- BUILT (game_modes.gd "hamlet_king"). His whole army
+                         is the diminished "short" roster: SHORTROOK,
+                         SHORTBISHOP, SHORTPAWN, PRINCESS (short queen) and
+                         PRINCE instead of a real king -- same piece family
+                         as RunState's starting half-army. No SHORTKNIGHT
+                         exists, so plain KNIGHT fills that slot. Player's
+                         side (white) is untouched, full standard chess --
+                         this is his army being weak, not a rule change.
+                         Black castling disabled (PRINCE isn't literal KING,
+                         same accepted trade-off as Lopsided Kings' 2-3-king
+                         sides); white keeps normal castling. Opener/
+                         tutorial floor; additional AI weakness still comes
+                         from RunState.in_run's Skill Level 0 separately.
+  2. The Duelist      -- Three Check, already built.
+  3. Mountain King    -- King of the Hill, already built.
+  4. Goblin Horde     -- Horde mode, already built.
+  5. Rat King         -- Lopsided Kings (white/black 1-3 royals): a
+                         three-headed king, one fate. Mating one king should
+                         NOT end the fight -- it should turn to stone (reuse
+                         the WALL/petrify sprite swap) and play continues
+                         against the remaining head(s); only the last one
+                         ending the game is a real loss. NOT built yet --
+                         real checkmate is a whole-side condition (any piece
+                         resolving a check counts), so "which king actually
+                         caused this mate" isn't known for free. Plan: on
+                         checkmate with >1 royal still alive, speculatively
+                         remove one royal at a time (resend position+perft)
+                         until legal moves reopen; that's the one that turns
+                         to stone. Needs new move-record bookkeeping for undo.
+  6. Medusa           -- Petrified mode, already built.
+  7. Hydra            -- Head of Snake, already built (independent per-side
+                         flags now exist; confirm checkbox UI still works).
+  8. The Bomber       -- BUILT (game_modes.gd "bomber"). REAL native Atomic
+                         Chess (engine blastOnCapture = true), symmetric --
+                         both sides' captures explode. Deliberately NOT the
+                         client-side "atomic" piece modifier: the point is
+                         the AI's own search/eval genuinely understands blast
+                         risk (evaluate.cpp has a dedicated "Explosion
+                         threats" scoring term; position.h has a king-safety-
+                         near-enemy-king carve-out), which only activates
+                         under the engine's real rule, never under our
+                         client-side tag. No literal KING on either side --
+                         parser.cpp:611 flags "Can not use kings with
+                         blastOnCapture" the moment literal KING exists
+                         anywhere in the variant. Added a new piece,
+                         PSEUDOKING, as the commoner stand-in instead of
+                         reusing PRINCE -- moves/gets checkmated exactly like
+                         a real king (betza "WF", "royal": true, same
+                         extinctionPseudoRoyal machinery) but is its own
+                         distinct piece, and its registry "name" is
+                         deliberately "king" so it plays the existing
+                         white_king/black_king sprite (looks like a king,
+                         zero new art). FOUND THE ACTUAL instant-draw root
+                         cause while building this: just not placing a king
+                         in the roster/FEN does NOT remove literal KING from
+                         the variant -- "[generated:chess]" inherits the
+                         FULL parent piece set (KING included) before any of
+                         our lines apply, and we never told it to strip it.
+                         VariantBuilder.build() now emits "king = -" whenever
+                         literal KING isn't in the roster (confirmed real
+                         syntax -- the engine's own bundled variants.ini uses
+                         it twice to do exactly this), which also retroactively
+                         fixes the same latent gap for Lopsided Kings when
+                         both sides use royal_count >= 2 (no literal king at
+                         all in that case either). Also removed a dead
+                         "position startpos" sent right before the real
+                         "position fen" on every generated-variant mode
+                         (always immediately overwritten, so always pointless;
+                         actively dangerous for a king-less variant since the
+                         inherited default startFen still contains a literal
+                         K/k the variant no longer recognizes).
+                         Found a REAL bug reading the generated_variant.ini
+                         off disk after the first two guesses still drew
+                         instantly: roster_for_placements() blanket-adds
+                         every "promote": true piece as a promotion filler,
+                         and ROYALKNIGHT is flagged BOTH "promote": true and
+                         "royal": true, so it got swept in and registered
+                         into extinctionPieceTypes despite zero of them
+                         existing on either side. Fixed (roster_for_placements
+                         now excludes "royal" pieces from that filler set) --
+                         but fixing it and re-reading the regenerated ini
+                         (extinctionPieceTypes = y, clean) proved this was
+                         NOT the actual blocker: still drew instantly after.
+                         THE ACTUAL root cause, found by reading
+                         position.cpp:2763 exactly instead of paraphrasing
+                         it: extinctionPieceCount is used by TWO different
+                         formulas depending on blastOnCapture. Normally
+                         (extinctionPseudoRoyal, no blast) the count-based
+                         check is skipped entirely, and the field only feeds
+                         a "<=count+1" pseudo-royal-registration formula
+                         where emitting royal_count (1) is correct. But
+                         blastOnCapture re-enables that count-based check,
+                         which has NO "+1" buffer -- it reads literally
+                         "count <= extinctionPieceCount" as extinct. With
+                         royal_count=1 emitted there, "extinct while holding
+                         1 or fewer" is already true at the normal starting
+                         count of 1 -- instant loss for BOTH sides before
+                         move one, confirmed by hand-tracing the exact C++
+                         condition against the actual starting counts.
+                         Fixed: VariantBuilder.build() now emits
+                         extinctionPieceCount = 0 specifically when
+                         blastOnCapture is present in rules (that check
+                         always means "zero remaining," for any royal_count),
+                         and royal_count as before otherwise -- no other mode
+                         uses blastOnCapture, so nothing else is affected.
+                         Castling disabled both sides -- board.gd's castling
+                         tracking is hard-wired to piece_type == KING, not
+                         generalized to PRINCE/PSEUDOKING the way
+                         _find_royal()/_crown_next_royal() already are, so
+                         it's a scoped trade-off, not a rules-accuracy claim.
+                         Needs an actual playtest to confirm it starts/plays/
+                         ends correctly now that literal KING is truly gone.
+  9. The Necromancer  -- CONFIRMED. Crazyhouse drop mechanic, but ONE-SIDED:
+                         he drops captured pieces back as his own, player
+                         never can. Engine-native via per-color drop
+                         regions (dropRegionWhite = "-" -> empty bitboard,
+                         confirmed by reading parser.cpp's Bitboard parser;
+                         dropRegionBlack = full board). capturesToHand stays
+                         global/symmetric (standard crazyhouse rule -- both
+                         sides' captures go to hand, player's just has
+                         nowhere legal to go). Being one-sided cuts real
+                         work: no player-facing pocket/drop UI needed at
+                         all. Still needs: parse AI bestmove drop notation
+                         (e.g. "N@c3") and spawn a new piece node instead of
+                         moving an existing one; extend generate_fen_string()
+                         to emit the "[...]" hand-contents suffix so the
+                         engine position stays synced as his hand grows;
+                         undo/redo support for a drop (remove piece, return
+                         to hand). NOT built yet.
+  10. The Wizard      -- existing final boss. Add Armageddon rule
+                         (board.draws_favor_black, already built) so draws
+                         against him count as his win -- fits the "the
+                         wizard cheats" trope, near-zero cost.
+
+Fog of war -- TABLED as a later add-on, not part of the boss roster for now.
+  Human-rendered masking (hide enemy pieces outside your own pieces'
+  occupied+legal-move squares) is cheap and was scoped out. A properly fair
+  version against the AI is a real feature, not cheap: it needs a persistent
+  per-side "belief state" FEN (last-known info, frozen outside current
+  vision) fed to the engine for ITS OWN search instead of the true FEN, with
+  the chosen move then resolved against the true board (a mismatch -- a
+  blocked path, a surprise capture -- is the actual gameplay, not a bug).
+  Without that belief-state layer, the AI always searches the true position
+  and is omniscient while the player is blind; fine as an intentional
+  "oracle" boss gimmick later, not as a neutral "fair" mode.

@@ -72,21 +72,28 @@ func _ready():
 
 func _exit_tree():
 	stop_stockfish()  # stop the engine on scene change (battle <-> shop)
+	# RunState is an autoload -- gold_changed outlives this scene, so the
+	# connection below must be dropped explicitly or it piles up a stale
+	# listener (closing over this scene's now-freed _gold_label) on every
+	# reload, each firing -> crashing on the next gold change.
+	if RunState.gold_changed.is_connected(_refresh_gold_label):
+		RunState.gold_changed.disconnect(_refresh_gold_label)
 
+
+var _gold_label: Label = null
 
 # Floating "Floor X/10 — Gold: N" counter, shown only during a run.
 func _setup_gold_hud():
 	if not RunState.in_run:
 		return
 	var layer = CanvasLayer.new()
-	var label = Label.new()
-	label.position = Vector2(16, 12)
-	label.add_theme_font_size_override("font_size", 22)
+	_gold_label = Label.new()
+	_gold_label.position = Vector2(16, 12)
+	_gold_label.add_theme_font_size_override("font_size", 22)
 	add_child(layer)
-	layer.add_child(label)
-	var refresh = func(total): label.text = "Floor %d/%d   Gold: %d" % [RunState.floor, RunState.FLOOR_COUNT, total]
-	refresh.call(RunState.gold)
-	RunState.gold_changed.connect(refresh)
+	layer.add_child(_gold_label)
+	_refresh_gold_label(RunState.gold)
+	RunState.gold_changed.connect(_refresh_gold_label)
 
 	# Debug / convenience: instantly win the current battle and continue the run.
 	var win_btn = Button.new()
@@ -96,11 +103,17 @@ func _setup_gold_hud():
 	layer.add_child(win_btn)
 
 
+func _refresh_gold_label(total):
+	if is_instance_valid(_gold_label):
+		_gold_label.text = "Floor %d/%d   Gold: %d" % [RunState.floor, RunState.FLOOR_COUNT, total]
+
+
 func _show_mode_select():
 	var popup = MODE_SELECT_SCENE.instantiate()
 	add_child(popup)
 	popup.mode_chosen.connect(_on_mode_chosen.bind(popup))
 	popup.start_run.connect(_on_start_run.bind(popup))
+	popup.test_shop.connect(_on_test_shop.bind(popup))
 
 
 func _on_start_run(popup):
@@ -108,6 +121,12 @@ func _on_start_run(popup):
 	RunState.start_run()
 	# Reload so the gold HUD / run routing in _ready pick up the fresh run state.
 	get_tree().reload_current_scene()
+
+
+func _on_test_shop(popup):
+	popup.queue_free()
+	RunState.start_test_shop()
+	get_tree().change_scene_to_file("res://Scenes/shop.tscn")
 
 
 func _show_popup(text):
@@ -148,16 +167,27 @@ func _finish_game(won, text):
 
 
 func _on_mode_chosen(vs_computer, mode_id, popup):
-	current_variant = GameModes.apply(board, mode_id)  # board flags + static variant name
+	# Resolve once (not GameModes.apply() + a separate modes() lookup) so a
+	# per-game-randomized mode (e.g. chess960's layout) is consistent between
+	# the board-flags pass and the build/start pass below.
+	var m = GameModes.get_mode(mode_id)
+	current_variant = GameModes.apply_config(board, m)  # board flags + static variant name
 	popup.queue_free()
-	_configure_and_start(GameModes.modes().get(mode_id, {}), vs_computer)
+	_configure_and_start(m, vs_computer)
 
 
-# Start the current run floor: your army vs the floor's enemy, always vs the AI.
+# Start the current run floor: your army vs the floor's enemy. In test_mode,
+# this is a plain standard-army test battle instead -- not any specific
+# floor's themed enemy (dwarf army, Hamlet King's short pieces, etc.).
 func _start_run_battle():
-	var m = RunState.current_battle()
+	var m = RunState.test_battle() if RunState.test_mode else RunState.current_battle()
 	current_variant = GameModes.apply_config(board, m)
-	_configure_and_start(m, true)
+	# Debug: test_hotseat (set by the shop's "Test vs Human" button) plays
+	# this one battle human-vs-human instead of vs the AI, so an upgraded
+	# piece's movement can be checked freely from either side.
+	var vs_computer = not RunState.test_hotseat
+	RunState.test_hotseat = false
+	_configure_and_start(m, vs_computer)
 
 
 # Build and launch a battle from a mode/battle config dict.
@@ -177,7 +207,7 @@ func _configure_and_start(m, vs_computer):
 		# Build a fresh variants.ini from the roster (explicit, else just the pieces
 		# in play + promotion targets). Its letter map is shared with parsing.
 		var roster = m.get("roster", VariantBuilder.roster_for_placements(pl))
-		var build = VariantBuilder.build(roster, board.length, "generated", m.get("rules", []), m.get("royal_count", 1))
+		var build = VariantBuilder.build(roster, board.length, "generated", m.get("rules", []), m.get("royal_count", 1), board.width)
 		_variant_path_override = VariantBuilder.write_variant_file(build["text"])
 		current_variant = build["variant"]
 		Globals.set_active_char_map(build["char_to_enum"], build["enum_to_char"])
@@ -212,8 +242,14 @@ func _init_engine():
 		send_to_stockfish("setoption name Skill Level value 0")
 
 	if board.generated_fen_string.length() > 0:
-		send_to_stockfish("position startpos")
 		# Use the generated FEN (stones become "*" wall squares the engine respects).
+		# No throwaway "position startpos" first -- it was immediately overwritten
+		# by this line anyway (dead), and for a king-less variant (e.g. Atomic-style
+		# modes with "king = -") it's actively harmful: "startpos" falls back to the
+		# variant's inherited default startFen (standard chess, from the ":chess"
+		# parent), which still contains a literal K/k -- no longer a valid piece
+		# once the variant strips king, so parsing it could corrupt engine state
+		# before the real FEN below ever gets sent.
 		send_to_stockfish("position fen " + board.generate_fen_string())
 	else:
 		send_to_stockfish(start_position_string)
@@ -246,8 +282,22 @@ func _variants_path() -> String:
 	return ProjectSettings.globalize_path(dst)
 
 
+# Lines from "eval"'s verbose per-term breakdown table -- zero diagnostic
+# value for move/position debugging, pure noise. "Final evaluation" is kept
+# (that's what side_in_check reads).
+const _NOISY_LINE_MARKERS = ["info string", "Contributing terms", "+---", "|", "Classical evaluation"]
+func _is_noisy_line(line: String) -> bool:
+	if line.strip_edges() == "":
+		return true
+	for marker in _NOISY_LINE_MARKERS:
+		if line.begins_with(marker) or marker in line:
+			return true
+	return false
+
 # Per-line handler. Both engine backends deliver one UCI line at a time.
 func _on_engine_line(line: String) -> void:
+	if not _is_noisy_line(line):
+		Globals.dprint("[uci] << " + line)
 	if line.begins_with("C:\\Users"):
 		print("CRASHED")
 		return
@@ -300,6 +350,7 @@ func perft():
 
 # Send a command to the engine. Kept under this name so board.gd is unchanged.
 func send_to_stockfish(command: String):
+	Globals.dprint("[uci] >> " + command)
 	if is_running and engine:
 		engine.send(command)
 

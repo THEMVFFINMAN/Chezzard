@@ -68,4 +68,10 @@ custom_minimum_size = Vector2(320, 48)
 layout_mode = 2
 text = "Next Floor →"
 
+[node name="TestHotseat" type="Button" parent="CenterContainer/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(320, 44)
+layout_mode = 2
+text = "Test vs Human (hotseat)"
+
 [connection signal="pressed" from="CenterContainer/Panel/Margin/VBox/NextFloor" to="." method="_on_next_floor_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/Margin/VBox/TestHotseat" to="." method="_on_test_hotseat_pressed"]

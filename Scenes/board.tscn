@@ -7,14 +7,9 @@
 script = ExtResource("1_p6hac")
 
 [node name="MarginContainer" type="MarginContainer" parent="." unique_id=257581364]
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_left = 300.0
-offset_top = 5.0
-offset_right = 900.0
-offset_bottom = 605.0
-grow_vertical = 2
+anchors_preset = 0
+offset_right = 600.0
+offset_bottom = 600.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
@@ -22,11 +17,3 @@ size_flags_vertical = 3
 wait_time = 0.5
 
 [node name="Promotion_display" parent="." unique_id=1055873401 instance=ExtResource("2_2wvcj")]
-
-[node name="Button" type="CheckBox" parent="." unique_id=1191421839]
-offset_left = 795.0
-offset_top = 331.0
-offset_right = 1097.0
-offset_bottom = 423.0
-
-[connection signal="toggled" from="Button" to="." method="_on_button_toggled"]

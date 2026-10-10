@@ -1,0 +1,329 @@
+CHEZZARD — FEATURE LIST & TODO
+Generated from code inspection (Scripts/*.gd, Scenes/piece.tscn) + git log, 2026-10.
+================================================================================
+
+HOW TO READ THIS FILE
+----------------------
+"WORKING" = traced through the actual code path and confirmed wired up (not
+just declared). "PARTIAL" = the data/registry entry exists but something
+needed to use it in-game is missing (usually a sprite). "NOT BUILT" = idea
+only, no code.
+
+MAJOR FIX (2026-10, first playtesting round): check detection was broken
+game-wide, not just for Three Check — board._finish_move (the normal move
+path) never sent the engine an "eval" command, so board_container.
+side_in_check almost never updated after a real move. One root cause took
+out three things: Three Check's register_check, iron/stone/wall pieces'
+in-check move restriction, and ordinary checkmate-vs-stalemate detection in
+every single mode. Fixed by sending "eval" before "go perft 1" in every path
+that drives it (move()'s main path, the double-move path, undo_done()). Also:
+GameModes.default_layout() (the fallback for Standard/Three Check/Atomic/
+KOTH/Head of Snake) was quietly using roguelike-run test scaffolding (short-
+rook/mule/princess/prince + materials/modifiers) — reverted to plain standard
+chess; the actual run's army is untouched (RunState._default_army(), unrelated).
+
+
+GAME MODES (GameModes.modes() in Scripts/game_modes.gd) — all WORKING
+----------------------------------------------------------------------
+- Standard                 generated roster, classic rules
+- Three Check              win by giving 3 checks (board.white_checks/black_checks)
+- Atomic                   variant="customatomic" (Fairy-Stockfish built-in rule)
+- King of the Hill         variant="customkoth"
+- Unroyal (capture all)    no royalty, a MAN stands in for king, win by extinction
+- Head of Snake            royalty passes to the next back-rank piece on checkmate
+                           instead of ending the game
+- Lopsided Kings           (was Double King) each side independently gets 1-3
+                           royal pieces (edit white_king_count/black_king_count
+                           at the top of GameModes._build_modes()). A count-1
+                           side uses literal KING (real castling); count 2-3
+                           uses PRINCE copies. The engine's royal_count/
+                           extinctionPieceCount is a single shared value, but
+                           per position.cpp (count <= extinctionPieceCount+1)
+                           it's a ceiling, not a required match — set to
+                           max(white_count, black_count) and both sides'
+                           royals are still individually protected regardless
+                           of the other side's count. Hardcoded in
+                           game_modes.gd, not something you earn mid-run.
+- Chess960/Fischer Random  constrained-random back rank (bishops opposite colours,
+                           king between the rooks), re-rolled every game via
+                           GameModes.get_mode() (not cached). Castling works with
+                           the king-captures-rook UCI notation chess960 variants
+                           use: board.gd detects it in move() before the generic
+                           capture logic runs (which would otherwise delete the
+                           rook as a "captured" piece), remaps to the king's real
+                           landing square (g/c file), and threads the rook's
+                           origin/destination through undo/redo via castle_info.
+                           Rook-moved tracking keys off the ACTUAL start files
+                           (board._record_960_start_files(), run once per game),
+                           not hardcoded a/h, so castling rights stay correct
+                           regardless of where the random rooks started.
+- Horde                    Black is a kingless wall of 24 pawns (ranks 5-7);
+                           White has a full normal army (MAN stands in for the
+                           king, same non-royal trick as Unroyal, so the ini's
+                           extinctionPseudoRoyal never flips on and silently kills
+                           the "zero pieces = loss" check — see position.cpp:2763).
+                           Reuses Unroyal's exact win-check and rule lines.
+- Torpedo                  pawns can double-step from any rank (doubleStepRegion
+                           rule lines), not just their start. Uses plain PAWN in
+                           its own layout — SHORTPAWN's betza has no double-step
+                           at all, so the rule would be invisible against the
+                           default Chezzard army.
+- King Race (bonus)        adapted Racing Kings: checking=false (no checks
+                           allowed at all), castling=false, win by racing your
+                           king to the far rank (whiteFlag/blackFlag rule
+                           lines). Adapted, not a literal port — the real
+                           variant starts both armies sharing ranks 1-2 and
+                           racing to a shared rank 8, which needs one rank
+                           holding both colours at once; this project's layout
+                           format has never done that, so each side instead
+                           keeps its own back rank and races to the OPPOSITE
+                           edge (same 7-rank distance). Mode-select only, never
+                           a roguelike floor, so there's no run consequence for
+                           losing it. UNVERIFIED: see the King of the Hill /
+                           flag-win note below.
+- Petrified                queen/rook/bishop/knight turn into an immobile,
+                           uncapturable WALL on the square they just captured
+                           on (king and pawns unaffected — pawns stay the only
+                           piece that can keep capturing). 100% client-side in
+                           board.gd's move(); no engine rule needed at all,
+                           unlike every other mode here. The literal WALL
+                           piece type is now ALSO recognized by
+                           _is_wall_piece()/add_wall_piece_moves() (previously
+                           it was moveless but still capturable — this was a
+                           real gap, now fixed for every mode, not just this
+                           one) and excluded from promotion choices. Undo/redo
+                           tracked via record["petrified_from"], same pattern
+                           as promotion's promoted_from/promoted_to.
+- Long/Short Board         still 8 files wide, board.length = 10 or 6. See the
+                           BOARD LENGTH section below for what had to be fixed
+                           to make this actually work.
+
+Board-level toggles that work with any mode (Board @export flags, wired in
+GameModes.apply_config, including per-side castling disable): disable_white_castling,
+disable_black_castling, flip_white_king_queen, flip_black_king_queen, custom
+width/length.
+
+BOARD LENGTH — WORKING (Long Board 10 / Short Board 6, still 8 wide). Three
+real bugs, found by tracing the code rather than assuming "the plumbing just
+needs a mode to use it" (that undersold it):
+  1. VariantBuilder.build() never emitted maxRank/maxFile at all — the
+     generated variant was hardcoded to Fairy-Stockfish's 8x8 default no
+     matter what board.width/length were. Added both as rule lines (plus
+     promotionRegionBlack, which was also never emitted — relied on an
+     unconfirmed engine default).
+  2. board.gd's initiate_board() had width and length crossed on every single
+     axis — pixel sizing (container.size.x divided by rank count instead of
+     file count, and vice versa), square pixel position, AND the
+     chess_position file-letter/rank-number math (file letter derived via
+     modulo against length instead of width). All invisible until now purely
+     because length and width were always both 8. Rewrote the function
+     (kept the externally-read var names letters_size/numbers_size intact —
+     promotion_display.gd reads them — just fixed what they're computed
+     from). Also deleted place_holder_numbers, an unused leftover of the old
+     broken modulo approach once file letters came directly from the loop
+     index instead.
+  3. Black's (non-chess960) castling hardcoded the rook's rank to literal
+     "8" in three places (conduct_castling_checks's castle_rook calls and
+     undo_individual_move's undo_castle calls) — now str(length). White's
+     stays literal "1" (always correct — white's back rank never moves).
+NOT exercised yet: changing WIDTH (narrower board cutting the rook corners,
+wider adding files) — only length was tested in Long/Short Board. Also,
+flip_white_king_queen/flip_black_king_queen (_apply_starting_flips) still
+assumes exactly 8 ranks via `if ranks.size() == 8` and will silently no-op
+on a non-8-length board — untouched since neither new mode uses it.
+
+CAVEAT on King of the Hill AND King Race: both end the game via the engine's
+flag-reached rule, not check/checkmate. board.check_game_over()'s win-vs-draw
+split is keyed on the engine eval line containing "(in check)" — a flag win
+never puts anyone in check, so this path has never actually been confirmed (by
+me, by reading code, or by anyone playtesting) to report a WIN instead of
+silently reporting "Draw" when the hill/flag is reached. Flagged in TODO.txt —
+play one out to the flag square and confirm before trusting either mode.
+
+Other NATIVE Fairy-Stockfish variants confirmed in native/Fairy-Stockfish/src/
+variant.cpp that are the same "just a variant string + a layout" tier of effort
+as Atomic/KOTH, not yet wired up: Antichess/Giveaway (forced captures, win by
+losing everything), Losers (win by getting checkmated), Amazon Chess (queen ->
+amazon — already have a sprite), Nightrider Chess (knights -> knightriders —
+already have a sprite). See TODO.txt.
+
+Engine: Fairy-Stockfish via the native FairyEngine GDExtension
+(addons/fairy_engine) ONLY — confirmed in engine_bridge.gd there is no
+stockfish.exe subprocess fallback on any platform; if the extension isn't
+found in ClassDB, EngineBridge just push_errors and the engine never starts.
+(A comment in board_container.gd claims a desktop subprocess fallback — that's
+stale/inaccurate, ignore it.)
+Build state right now: only the Windows template_debug .dll is actually
+compiled (addons/fairy_engine/bin/). That's enough for the editor/debug runs
+on PC today with zero dependency on stockfish.exe. template_release (needed
+for an exported build) and every other platform (Linux/macOS/Android/iOS)
+aren't built yet — either run the GitHub Actions workflow or `scons` locally
+before shipping.
+AI difficulty is forced to Skill Level 0 during a roguelike run (beatable by
+design); otherwise plays at full strength.
+NOT YET WIRED: Fairy-Stockfish also exposes UCI_LimitStrength (bool) and
+UCI_Elo (500-2850), confirmed in native/Fairy-Stockfish/src/ucioption.cpp —
+real strength-limiting, a better fit than Skill Level for an ELO-based
+difficulty curve. See TODO.txt.
+
+
+ROGUELIKE RUN LOOP (RunState.gd + Scenes/shop.tscn) — WORKING
+----------------------------------------------------------------------
+- 10-floor climb, floor 10 = "The Wizard" (head-of-snake boss)
+- Escalating enemy armies per floor band (dwarf army -> full army -> Wizard)
+- Persistent army carried between floors (RunState.army), half-strength
+  starting roster (short rook/mule/short bishop/prince + 4 short pawns)
+- Gold economy: gold from wins, gold from captures (scaled by material),
+  relic bonuses on both
+- Permanent piece loss (blood material death removes the square for the
+  rest of the run via RunState.lost_origins)
+- Between-floor shop: 1 random relic offer + 3 random piece-upgrade offers
+  (material / modifier / transform), re-rolled each floor
+- "Auto-Win" debug button on the in-run HUD (instant floor clear for testing)
+- Floor/gold HUD overlay during a run
+
+RELICS (Globals.RELICS, effects applied in board.gd) — all 4 WORKING
+  - Merchant's Scale   +50% gold from wins
+  - Bloodstone         +2 gold per capture
+  - Glassblower's Gloves   glass pieces never break (overrides break_chance)
+  - War Chest          +15 gold at the start of each floor
+
+
+PIECES (Globals.PIECE_REGISTRY) — 25 of 35 have sprites and are fully playable
+----------------------------------------------------------------------
+WORKING (sprite confirmed in Scenes/piece.tscn SpriteFrames, both colors):
+  pawn, bishop, knight, rook, queen, king              (standard chess)
+  prince, man, royalknight, royalbishop, royalrook      (royal/commoner family)
+  shortrook, shortbishop, shortpawn, mule               (shortened starter pieces)
+  archbishop, chancellor, amazon, empress, giraffe,
+  knightrider, princess                                 (compounds/long)
+  wall, stone                                            (immobile/uncapturable)
+  camel                                                  (has a sprite despite the
+                                                           "needs sprite" comment in
+                                                           globals.gd — code comment
+                                                           is stale, camel is usable)
+
+PARTIAL — registered with Betza movement, no sprite yet, so unusable in a
+real roster until art is added (Globals.PIECE_REGISTRY comment confirms):
+  ferz, alfil, dabbaba, goldgeneral, silvergeneral,
+  zebra, wildebeest, dabbabarider, buffalo, backpawn (new: moves/captures
+  forward like a normal pawn, can also step backward one square, no capture;
+  betza "fbmWfceFifmnD" copied verbatim from Fairy-Stockfish's own
+  pawnback_variant(). Promotion/en-passant/attack-shape all generalized to a
+  registry "pawn" flag check (Globals.is_pawn_type()) instead of the old
+  hardcoded PAWN/SHORTPAWN enum checks, specifically so this works correctly)
+
+IRONQUEEN is a distinct registry entry (reuses the "queen" sprite + iron
+shader) — WORKING, not a gap.
+
+
+MATERIALS (Globals.MATERIALS / MATERIAL_EFFECTS, piece.gd + board.gd) — WORKING
+----------------------------------------------------------------------
+Applies to ANY piece type via a "material" flag (not a separate piece):
+  - silver   1.5x gold value, visual recolor
+  - gold     2.0x gold value
+  - glass    4.0x gold value, 25% chance to shatter on capturing (negated by
+             the Glassblower relic)
+  - blood    5.0x gold value, piece is permanently lost from the run army if
+             it dies
+  - iron     uncapturable "wall" piece — keeps its own geometric movement,
+             sent to the engine as a "*" blocked square, can still interpose
+             to block a check (but can't be used to dodge checkmate)
+  - stone    same uncapturable-wall mechanic as iron (separate shader/look)
+Any piece can be made an uncapturable blocked square via iron/stone material
+— not just the dedicated legacy STONE/IRONQUEEN piece types. This covers
+"blocked squares" as a feature in full (confirmed).
+
+
+MODIFIERS (Globals.MODIFIERS, piece.gd overlays + board.gd filters)
+----------------------------------------------------------------------
+WORKING:
+  - racist   colourbound: filters out ALL moves (not just captures/attacks)
+             to squares of a different colour than the one it's standing on —
+             it literally can't step onto or capture into an off-colour
+             square. Drawn as a colored bar under the piece. NOT currently
+             purchasable in the shop (MODIFIER_OFFERS only has double/time1)
+             — today it only exists hardcoded onto the gold shortrook in
+             GameModes.default_layout(). A "racist queen" (queen off-color)
+             is therefore buildable with existing code but has no offer/
+             layout anywhere putting it in front of a player yet.
+  - time1    1-turn cooldown after moving; drawn as a number badge
+  - time2    2-turn cooldown after moving
+  - double   may move twice in a row; drawn as a "2" badge (re-enables the
+             piece for a second move)
+NOT WIRED (data/desc only, board.gd has no square-effect logic for it):
+  - slippery   square effect, "spend a turn to click it upright" — scaffolded
+               in the registry, no implementation
+
+
+BRITTLE CURSE (board.brittle_curse, board.gd + piece.gd) — MECHANIC WORKING,
+NOT YET TRIGGERED ANYWHERE
+----------------------------------------------------------------------
+An enemy debuff, not a shop modifier or piece material — a board-level rule
+toggle (@export var brittle_curse, off by default, zero effect on any
+existing mode). While on, a rotating 3-turn cycle (ticked once per real
+player-turn transition, in _flip_turn — correctly skipped during a double
+move's first half, since the turn doesn't actually change hands then):
+  turn 1 of the cycle: picks one random non-royal, alive player piece,
+    marks it with an amber warning ring (piece.brittle_stage = 1)
+  turn 2: if it's still the same un-moved piece, upgrades to a thicker red
+    ring (brittle_stage = 2)
+  turn 3: if STILL un-moved, shatters it (removed from the board, permanently
+    lost from the run army via RunState.lose_piece() — same fate as a blood
+    death) — then the cycle restarts fresh on the FOLLOWING turn regardless
+Moving the targeted piece at any point clears the threat immediately
+(board.gd's move(), matched by node identity against _brittle_target) — but
+dodging does NOT make the next piece get picked any sooner; the 3-turn cycle
+always runs its full length before a new target is chosen.
+The warning rings (piece.gd _draw(), two plain draw_arc() calls) are an
+explicit placeholder — there's no real icon/name settled yet ("Brittle" is a
+working name only). Nothing in the game turns brittle_curse on for any
+mode/floor yet — it needs a real trigger (shop offer, relic, a specific
+boss floor ability, etc.) before a player ever sees it. See TODO.txt.
+
+
+SHOP MECHANICS (Scripts/shop.gd) — WORKING
+----------------------------------------------------------------------
+  - Buy a material upgrade for a random army piece (silver/gold/glass/
+    blood/iron, 5 priced options)
+  - Buy a modifier for a random army piece (double/time1)
+  - Transform a piece to its upgrade tier (cost scales with value gained):
+    shortpawn->pawn, shortrook->rook, shortbishop->bishop, mule->knight,
+    knight->knightrider, bishop->archbishop, rook->chancellor,
+    princess->queen, pawn->man
+  - Buy a relic (one random unowned one offered per floor)
+  - Can't sell/transform the royal prince/king
+
+
+UNDO / REDO (board.gd + Scenes/board_auxiliary_container.gd) — WORKING
+----------------------------------------------------------------------
+Full move undo/redo stack, including castling and promotion rewind, with a
+UI Undo/Redo button pair.
+
+
+VARIANT GENERATION (Scripts/variant_builder.gd) — WORKING
+----------------------------------------------------------------------
+Builds a fresh Fairy-Stockfish variants.ini entry at runtime from whatever
+roster/layout a mode specifies (Betza strings per custom piece), so new
+armies don't need hand-written variant files. Also converts a compact
+layout dict into placements, placements into a FEN string, and derives a
+roster from placements automatically if one isn't given explicitly.
+
+
+ENEMY PRESENTATION — NOT BUILT
+----------------------------------------------------------------------
+Every army (yours and the enemy's) draws from the same shared sprite sheet
+in piece.tscn — there is no mechanism yet to give a themed enemy (e.g. a
+"goblin horde" floor) its own distinct look. Would need either new sprite
+sheets per theme or a recolor-shader approach similar to materials.
+
+
+CHESS960 / FISCHER RANDOM — NOT BUILT
+----------------------------------------------------------------------
+See the note under GAME MODES above.
+
+
+REMAINING TODO
+----------------------------------------------------------------------
+See TODO.txt — it now only lists items confirmed NOT in the code (everything
+that was actually already done has been folded into the sections above).
