@@ -244,7 +244,14 @@ const MODIFIERS = {
 	"time1":    {"desc": "after moving, locked for 1 full turn", "cooldown": 1},
 	"time2":    {"desc": "after moving, locked for 2 full turns", "cooldown": 2},
 	"double":   {"desc": "may move twice in a row (short-range pieces)", "extra_moves": 1},
-	"slippery": {"desc": "(square effect, planned) slips; spend a turn to upright", "square_effect": true},
+	# A negative: this piece has no legal moves of its own at all (cleared in
+	# apply_modifier_filters, same spot cooldown clears a timed piece's moves)
+	# -- the only thing its owner can do with it is spend their ENTIRE turn
+	# uprighting it (board.prompt_slippery_correction(), a Yes/No prompt), which
+	# clears the tag and hands the turn over same as any real move. No partial
+	# state -- one confirm either keeps the turn (No) or spends the whole thing
+	# correcting it (Yes); it never also moves anywhere in the same turn.
+	"slippery": {"desc": "cannot move -- spend a turn to upright it instead", "slippery": true},
 	"petrify":  {"desc": "turns into an immobile wall right after capturing", "petrify": true},
 	"atomic":   {"desc": "capturing blows up itself + adjacent non-pawns", "atomic": true},
 	# Captured while NOT currently a pawn -> respawns one rung down the
@@ -258,6 +265,53 @@ const MODIFIERS = {
 	# retriggers). Never a valid target for a royal piece (shop.gd excludes
 	# it) -- a respawning king would break checkmate.
 	"zombie": {"desc": "if captured while not a pawn, demotes one rung instead of dying", "zombie": true},
+	# Capturing grants ONE bonus move, right after -- piggybacks on the exact
+	# same board.double_pending_piece machinery as "double" (board.gd's
+	# apply_modifier_filters already restricts every other piece's legal_moves
+	# and re-enables this one for its second pickup whenever that var is set,
+	# regardless of which modifier set it), so this is capped at the same
+	# ceiling "double" is: one extra action, never a chain, even if that bonus
+	# move also captures. Priced like a rare card specifically because it's
+	# conditional (needs a capture to unlock) rather than "double"'s
+	# unconditional extra move.
+	"vampiric": {"desc": "capturing grants one bonus move immediately after", "vampiric": true},
+	# If THIS piece is captured, its capturer dies too (mutual kill) -- same
+	# single-target-destroy shape as glass/atomic's own on-capture consumption
+	# in board.gd's move(), just triggered by being the VICTIM instead of the
+	# aggressor. A deterrent/trap piece: fine to put on a piece you want the
+	# enemy to think twice about trading into.
+	"martyr": {"desc": "if captured, the capturing piece dies too", "martyr": true},
+	# A negative, not offered in the shop (see shop.gd's CARD_OFFERS) --
+	# frozen for its first 3 turns via the same cooldown_until field time1/
+	# time2 reuse after moving, just armed ONCE at battle start instead
+	# (board._init_modifier_state()) and never re-triggered afterward.
+	"slow_starter": {"desc": "frozen for its first 3 turns, then free for the rest of the battle", "start_cooldown": 3},
+	# A negative, not offered in the shop -- alternates active/resting based
+	# purely on its own side's turn PARITY (board.gd's apply_modifier_filters,
+	# toggled once per its side's own turn-opportunity), regardless of
+	# whether it actually moved on an active turn. Unlike time1/time2, this
+	# never stops alternating for the rest of the battle.
+	"metronome": {"desc": "forced to rest every other turn, whether it moved or not", "metronome": true},
+	# A negative, not offered in the shop -- a leash: can only land within
+	# CHAINED_LEASH (board.gd) squares, Chebyshev distance, of the square it
+	# started the battle on (piece.origin), regardless of how far its own
+	# movement shape would otherwise reach.
+	"chained": {"desc": "can only move within 3 squares of its starting square", "chained": true},
+	# A negative, not offered in the shop -- can move, but its legal_moves are
+	# filtered down to non-capturing squares only (board.gd's
+	# apply_modifier_filters). Same flavor of restriction as an iron/stone
+	# piece's own move generation (never captures), just layered onto a
+	# piece's REAL movement shape instead of replacing it with a wall's.
+	"pacifist": {"desc": "can move, but never capture", "pacifist": true},
+	# Unlike pacifist/slow_starter/metronome/chained above, this one DOES show
+	# up in the shop (see CARD_OFFERS) -- an aggressive, opt-in trade-off: all
+	# the reach of its normal movement shape, but it simply can't do anything
+	# with a turn that isn't a capture.
+	"duelist": {"desc": "can only move by capturing", "duelist": true},
+	# Shop-offered, like duelist above. Softer than duelist: only forces the
+	# capture when one's actually on the table (board.gd's apply_modifier_filters
+	# keeps the full normal move list on a turn where nothing's capturable).
+	"berserker": {"desc": "must capture if a capture is available, otherwise moves normally", "berserker": true},
 }
 
 # --- Zombie demotion ladder ---
@@ -321,6 +375,33 @@ func zombie_target(piece_type):
 		return tied[randi() % tied.size()]
 	return Piece_Type_ENUMs.SHORTPAWN  # already short, or genuinely unmapped -- bottom rung
 
+
+# "Clipped Wings" effect support: strip a compound piece down to the single
+# highest-value movement identity it's built from (e.g. Queen -> Rook, since
+# Rook(5) outvalues Bishop(3); a tie, e.g. Archbishop's Bishop/Knight both at
+# 3, picks randomly between them) -- the SAME highest-value-parent /
+# random-tie-break rule zombie_target() already uses above, reusing
+# ZOMBIE_COMPOUND_PARENTS rather than a second table. Deliberately NOT the
+# same function: zombie_target()'s "genuinely unmapped -> Short Pawn" bottom
+# rung is specific to a captured zombie piece having to land SOMEWHERE --
+# here, a piece that isn't a listed compound is simply not a "multi piece"
+# and is left alone (a Rook, Pawn, or Prince comes back unchanged, not
+# demoted). Royal pieces are excluded outright even though a couple appear in
+# ZOMBIE_COMPOUND_PARENTS (for zombie-ladder completeness) -- stripping a
+# Royal Queen down to a plain Rook would silently delete the player's own
+# royalty mid-run, not just weaken a piece.
+func simplify_target(piece_type):
+	if PIECE_REGISTRY.get(piece_type, {}).get("royal", false):
+		return piece_type
+	if not ZOMBIE_COMPOUND_PARENTS.has(piece_type):
+		return piece_type
+	var parents = ZOMBIE_COMPOUND_PARENTS[piece_type]
+	var best_value = -1
+	for p in parents:
+		best_value = max(best_value, piece_value(p))
+	var tied = parents.filter(func(p): return piece_value(p) == best_value)
+	return tied[randi() % tied.size()]
+
 # Flip to true for the full [uci]/[movegen]/[board_dump]/[game_over]/etc. trace
 # that was used to hunt the FEN-corruption bug -- very noisy, off by default.
 var debug_logging = true
@@ -344,7 +425,78 @@ const RELICS = {
 	"siege_breaker":       {"name": "Siege Breaker",        "desc": "Enemy can never castle",           "cost": 50},
 	"checkmate_insurance": {"name": "Checkmate Insurance",  "desc": "Draws count as your win",          "cost": 80},
 	"confusion_tactics":   {"name": "Confusion Tactics",    "desc": "Enemy starts king/queen swapped",  "cost": 45},
+	# Consumable, not a passive: fires exactly once (RunState.lose_piece()),
+	# then removes itself from RunState.relics for good -- "one and done," not
+	# a recurring per-floor freebie. Cheaper than the always-on relics above
+	# for exactly that reason.
+	"insurance_policy":    {"name": "Insurance Policy",     "desc": "The next piece you'd permanently lose is saved instead. Used up the moment it triggers.", "cost": 60},
+	# Read directly by board_container.gd at battle setup (board.undo_charges_remaining),
+	# not through RunState._apply_relic_battle_effects() like the board-flag relics
+	# above -- this isn't a @export board.gd flag GameModes.apply_config knows about,
+	# it's board_container's own per-battle setup concern.
+	"mulligan":            {"name": "Mulligan",             "desc": "+1 Undo per battle (vs. the computer)", "cost": 40},
 }
+
+
+# --- Opponent effects ---
+# A per-floor hazard the ENEMY brings to a battle -- the negative-space
+# counterpart to a relic (which is always something the PLAYER owns). Not
+# purchased; a floor just has one (RunState._floor_config() picks from/assigns
+# this pool). Applied in RunState.apply_effect(cfg, id), which mutates a
+# battle config before it's handed to the board -- some hit the enemy's own
+# layout/flags (Twin Crown, Fischer's Gambit), others hit the player's
+# instead (Reversed Siege, Mirror Match, Clipped Wings); either way the
+# OTHER side's layout is left completely alone. Chess960 already proved this
+# kind of one-sided mutation is safe: VariantBuilder/board.gd's castling-file
+# tracking are both per-side independent, so a hazard touching only one
+# side's board coexists cleanly with whatever the other side's current army
+# looks like (including the player's "Big"/movement-upgraded Frankenstein
+# pieces).
+const EFFECTS = {
+	"twin_crown":    {"name": "Twin Crown", "desc": "The enemy fields a second King, the other side of their Queen -- you must checkmate both."},
+	"chess960":      {"name": "Fischer's Gambit", "desc": "The enemy's back rank is shuffled, Chess960-style -- no familiar castling setup to read."},
+	"cold_comfort":  {"name": "Cold Comfort", "desc": "If this battle ends in a draw, the enemy wins it instead of you."},
+	"hollow_crown":  {"name": "Curse of the Hollow Crown", "desc": "Each cycle targets one of your pieces -- move it before the 3rd turn, or it shatters for good."},
+	"reversed_siege":{"name": "Reversed Siege", "desc": "You can never castle this battle."},
+	"mirror_match":  {"name": "Mirror Match", "desc": "Your own King/Queen-file pieces start swapped."},
+	# "A negative" piece-wide curse: every compound ("multi") piece in your
+	# army is stripped down to the single movement type it relies on most --
+	# Globals.simplify_target() (same highest-value / random-tie-break rule as
+	# the zombie demotion ladder: an Archbishop's Bishop/Knight tie at value 3
+	# picks randomly between them, same as a zombied Archbishop would).
+	"clipped_wings": {"name": "Clipped Wings", "desc": "Every compound piece in your army (Queen, Archbishop, Amazon, ...) is stripped to its single strongest movement type for this battle."},
+}
+
+
+# --- AI difficulty (Elo) tiers ---
+# A run picks one tier (RunState.difficulty_tier); RunState.floor_elo()
+# linearly ramps "start" -> "end" across the 10 floors, then layers a FRESH
+# +/-100 random roll on top EVERY floor (not one offset fixed for the whole
+# run). Fairy-Stockfish's own UCI_Elo option floors at 500 and ceils at 2850
+# (confirmed in native/Fairy-Stockfish/src/ucioption.cpp: Option(1350, 500,
+# 2850)) -- a target below 500 (e.g. Beginner's early floors) is still
+# computed and can still be displayed as-is, but gets clamped only at the
+# point it's actually sent to the engine (RunState.elo_to_uci_elo()), so
+# Beginner's nominal "300" realistically plays its first couple of floors at
+# the engine's real floor of 500.
+# Elite is deliberately flat (start == end): picking the top preset means
+# you're at the ceiling from floor 1, nowhere further to ramp to within the
+# ladder -- going past 2000 is a manual-mode-only choice.
+const ELO_TIERS = {
+	"beginner":     {"name": "Beginner",     "start": 300,  "end": 600},
+	"intermediate": {"name": "Intermediate", "start": 600,  "end": 1000},
+	"advanced":     {"name": "Advanced",     "start": 1000, "end": 1500},
+	"master":       {"name": "Master",       "start": 1500, "end": 2000},
+	"elite":        {"name": "Elite",        "start": 2000, "end": 2000},
+}
+
+# Manual mode (the 6th selection, RunState.difficulty_tier == "manual") has no
+# table entry above -- its start is derived from the player's chosen ceiling
+# (RunState.manual_elo) instead of a fixed pair, same ramp-then-jitter shape
+# as every preset tier. 400 is a flat, easily-retuned constant, picked to
+# land roughly where a manually-chosen example run already described itself
+# starting (target 2500 -> starts around 2100-2200).
+const MANUAL_ELO_SPAN = 400
 
 
 # --- Piece transformations ---

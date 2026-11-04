@@ -135,6 +135,15 @@ var game_over_emitted := false
 var win_awarded := false  # economy: win reward paid once per battle
 var player_won := false  # set at game over: did the player (white) win?
 var _glass_breaking = null  # a glass piece that rolled to shatter after capturing
+var _slippery_popup: CanvasLayer = null  # the active Yes/No "upright this piece?" prompt, if any
+var _martyr_killing = null  # a capturer that must also die -- the piece it just captured was tagged "martyr"
+
+# Vs-computer Undo limiting (hotseat is unrestricted -- see undo()). Set by
+# board_container at battle start: 1 baseline, +1 if the "mulligan" relic is
+# owned during a run. -1 means "unset" -- treated as unlimited, a safe
+# fallback if something ever builds a board without going through the normal
+# board_container._configure_and_start() path.
+var undo_charges_remaining := -1
 
 # Mode flags (set by GameModes.apply). unroyal: no royalty, win by capturing all
 # enemy pieces. head_of_snake_white/black: on THAT colour's checkmate, royalty
@@ -552,6 +561,14 @@ func _apply_test_materials():
 		var p = get_piece(sq)
 		if p:
 			p.apply_modifiers(test_modifiers[sq])
+			_init_modifier_state(p)
+
+# One-time setup for modifiers that establish starting state at battle setup,
+# rather than re-arming on some later event the way time1/time2's cooldown
+# re-arms after a move -- currently just Slow Starter.
+func _init_modifier_state(piece):
+	if piece.has_modifier("slow_starter"):
+		piece.cooldown_until = 2 * Globals.MODIFIERS["slow_starter"]["start_cooldown"]
 
 # Game-side modifier move filters, run after legal moves are populated. "racist"
 # (colourbound) keeps a piece to squares of the colour it currently stands on
@@ -563,12 +580,32 @@ func apply_modifier_filters():
 		for piece in get_tree().get_nodes_in_group(group):
 			if piece.dead:
 				continue
-			piece.queue_redraw()  # refresh the cooldown/racist overlay
+			piece.queue_redraw()  # refresh the cooldown/racist/slippery/metronome overlay
+			if piece.has_modifier("slippery"):
+				piece.legal_moves = []  # no normal move -- only prompt_slippery_correction() can spend this piece's turn
+				continue
+			# Metronome: alternates active/resting based purely on its OWN side's
+			# turn parity, regardless of whether it actually moved on an active
+			# turn. Gated on white_to_move == piece.white because this loop runs
+			# for BOTH colours every single ply -- without that gate the state
+			# would flip twice per round (once per side's ply) and cancel out.
+			if piece.has_modifier("metronome") and white_to_move == piece.white:
+				if piece.metronome_resting:
+					piece.legal_moves = []
+				piece.metronome_resting = not piece.metronome_resting
 			if piece.cooldown_until > moves.size():
 				piece.legal_moves = []  # timed piece still on cooldown this turn
 				continue
 			if piece.has_modifier("racist"):
 				_filter_colorbound(piece)
+			if piece.has_modifier("chained"):
+				_filter_chained(piece)
+			if piece.has_modifier("pacifist"):
+				_filter_pacifist(piece)
+			if piece.has_modifier("duelist"):
+				_filter_duelist(piece)
+			if piece.has_modifier("berserker"):
+				_filter_berserker(piece)
 	# Double: during the second half, only the double piece may move.
 	if double_pending_piece != null:
 		for piece in get_tree().get_nodes_in_group("pieces"):
@@ -599,6 +636,129 @@ func _square_color(pos):
 	var file_index = possible_letters.find(pos[0])
 	var rank = int(pos.substr(1, pos.length() - 1))
 	return (file_index + rank) % 2
+
+# Chained: a leash around the square this piece started the battle on
+# (piece.origin), Chebyshev distance -- independent of how far its own
+# movement shape would otherwise reach.
+const CHAINED_LEASH = 3
+
+func _filter_chained(piece):
+	if piece.legal_moves.is_empty():
+		return
+	var origin = piece.origin if piece.origin != "" else piece.chess_position
+	var of = possible_letters.find(origin[0])
+	var orank = int(origin.substr(1, origin.length() - 1))
+	var keep = []
+	for m in piece.legal_moves:
+		var mf = possible_letters.find(m[0])
+		var mrank = int(m.substr(1, m.length() - 1))
+		if max(abs(mf - of), abs(mrank - orank)) <= CHAINED_LEASH:
+			keep.append(m)
+	piece.legal_moves = keep
+
+# True if `piece` landing on `m` would capture something -- a normal capture
+# (m is occupied), or an en passant capture (m is EMPTY -- the captured pawn
+# sits on a different square -- but it's a pawn-type's diagonal step onto the
+# current en_passant_square, mirroring conduct_en_passant_check's own
+# "previous_chess_position[0] != chess_position[0] and chess_position ==
+# en_passant_square" test). Shared by pacifist/duelist/berserker so none of
+# them silently treat an en passant capture as a quiet move.
+func _is_capturing_move(piece, m):
+	if get_square(m).has_piece:
+		return true
+	return Globals.is_pawn_type(piece.piece_type) and m == en_passant_square and piece.chess_position[0] != m[0]
+
+# Pacifist: can move, but never capture.
+func _filter_pacifist(piece):
+	var keep = []
+	for m in piece.legal_moves:
+		if not _is_capturing_move(piece, m):
+			keep.append(m)
+	piece.legal_moves = keep
+
+# Duelist: can ONLY move by capturing -- no capture available means no move
+# at all this turn.
+func _filter_duelist(piece):
+	var keep = []
+	for m in piece.legal_moves:
+		if _is_capturing_move(piece, m):
+			keep.append(m)
+	piece.legal_moves = keep
+
+# Berserker: if ANY capture is on offer, it must take one -- otherwise moves
+# normally.
+func _filter_berserker(piece):
+	var captures = []
+	for m in piece.legal_moves:
+		if _is_capturing_move(piece, m):
+			captures.append(m)
+	if not captures.is_empty():
+		piece.legal_moves = captures
+
+# --- Slippery modifier ---
+# A slippery piece has no legal_moves of its own (see apply_modifier_filters) --
+# clicking it instead offers to spend the WHOLE turn uprighting it. Called by
+# piece.gd's own click handling (has_mouse + a fresh click), not the normal
+# pickup/drag path, since that path is gated on legal_moves.size() > 0.
+func prompt_slippery_correction(piece):
+	if _slippery_popup != null or piece.white != white_to_move or pending_promotion.size() > 0:
+		return  # a prompt is already up, it's not this piece's turn, or mid-promotion
+	freeze_pieces()
+	freeze_buttons()
+
+	var layer = CanvasLayer.new()
+	var panel = PanelContainer.new()
+	panel.position = get_viewport().get_visible_rect().size / 2.0 - Vector2(150, 45)
+	var vbox = VBoxContainer.new()
+	var label = Label.new()
+	var piece_name = Globals.give_piece_name_from_piece_type(piece.piece_type).capitalize()
+	label.text = "Your %s slipped and fell. Spend your turn to set it upright?" % piece_name
+	label.custom_minimum_size = Vector2(300, 0)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	vbox.add_child(label)
+	var row = HBoxContainer.new()
+	var yes_btn = Button.new()
+	yes_btn.text = "Yes"
+	yes_btn.pressed.connect(_confirm_slippery_correction.bind(piece))
+	row.add_child(yes_btn)
+	var no_btn = Button.new()
+	no_btn.text = "No"
+	no_btn.pressed.connect(_cancel_slippery_correction)
+	row.add_child(no_btn)
+	vbox.add_child(row)
+	panel.add_child(vbox)
+	layer.add_child(panel)
+	add_child(layer)
+	_slippery_popup = layer
+
+func _cancel_slippery_correction():
+	if _slippery_popup != null:
+		_slippery_popup.queue_free()
+		_slippery_popup = null
+	unfreeze_buttons()
+	if white_to_move:
+		unfreeze_white_pieces()
+	else:
+		unfreeze_black_pieces()
+
+# Confirmed: the piece is upright again (modifier cleared for good -- it does
+# not re-slip later) and the WHOLE turn is spent doing it, same as any real
+# move -- no undo support, same placeholder status as petrify/atomic captures.
+func _confirm_slippery_correction(piece):
+	if _slippery_popup != null:
+		_slippery_popup.queue_free()
+		_slippery_popup = null
+	piece.piece_modifiers.erase("slippery")
+	piece.queue_redraw()
+	unfreeze_buttons()
+	_flip_turn(piece.white)
+	for p in get_tree().get_nodes_in_group("pieces"):
+		p.legal_moves = []
+	top_level.send_to_stockfish("position fen " + generate_fen_string())
+	if computer_opponent and is_computer_turn():
+		top_level.send_to_stockfish("go depth 10")
+	top_level.send_to_stockfish("eval")
+	top_level.perft()
 
 # Called (deferred) when the engine's perft for the side to move was 0. Wall
 # pieces (stone/iron) are added game-side, so re-check real legal moves before
@@ -1156,6 +1316,12 @@ func move(previous_chess_position, chess_position):
 			# good on a pawn death -- see the comment on the modifier itself.
 			if captured.has_modifier("zombie") and not Globals.is_pawn_type(captured.piece_type):
 				_zombie_respawn(captured)
+			# Martyr: the piece just captured takes its capturer down with it.
+			# Independent of zombie above (one's about the VICTIM respawning,
+			# this is about the CAPTURER dying) -- both can fire on the same
+			# capture if a piece somehow carries both tags.
+			if captured.has_modifier("martyr"):
+				_martyr_killing = piece_to_move
 			# Petrify-on-capture: either the whole-game Petrified mode rule
 			# (queen/rook/bishop/knight only), or an individual piece flagged
 			# with the "petrify" modifier (any piece type, any mode -- the
@@ -1200,11 +1366,19 @@ func move(previous_chess_position, chess_position):
 		tween.tween_callback(black_moved_piece)
 		
 	# "double" pieces move twice in a row: on the first move keep the turn (and
-	# remember the piece); on the second, flip normally.
+	# remember the piece); on the second, flip normally. Vampiric piggybacks on
+	# the exact same double_pending_piece machinery -- a capture earns the same
+	# one bonus move "double" gives unconditionally, capped at the same ceiling
+	# (never a chain, even if the bonus move also captures).
+	# is_player_piece guards both: the AI side never gets a kept-turn bonus,
+	# since nothing here asks the engine for a SECOND bestmove on the same
+	# side -- granting one to a computer-controlled piece would just deadlock
+	# waiting for a human click that never comes.
 	var is_player_piece = not computer_opponent or piece_to_move.white
 	var double_first = is_player_piece and piece_to_move.has_modifier("double") and double_pending_piece == null
+	var vampiric_bonus = is_player_piece and piece_to_move.has_modifier("vampiric") and captured_piece and double_pending_piece == null
 	var double_second = double_pending_piece == piece_to_move
-	if double_first:
+	if double_first or vampiric_bonus:
 		double_pending_piece = piece_to_move
 	else:
 		if double_second:
@@ -1253,9 +1427,19 @@ func move(previous_chess_position, chess_position):
 		get_square(move).get_node("CollisionShape2D").disabled = true
 		get_square(move).get_node("premove").visible = false
 		
-	# Glass: a piece that just captured may shatter (break_chance, default 25%).
+	# Martyr: the piece just captured was tagged "martyr" -- its capturer dies
+	# too, resolved here first so glass/petrify/atomic below never act on a
+	# piece that's already gone.
 	var broke = false
-	if _glass_breaking == piece_to_move:
+	if _martyr_killing == piece_to_move:
+		_martyr_killing = null
+		record["martyr_killed"] = true
+		get_square(chess_position).has_piece = false
+		piece_to_move.delete_self()
+		broke = true
+
+	# Glass: a piece that just captured may shatter (break_chance, default 25%).
+	if not broke and _glass_breaking == piece_to_move:
 		_glass_breaking = null
 		record["glass_broke"] = true
 		get_square(chess_position).has_piece = false
@@ -1268,7 +1452,7 @@ func move(previous_chess_position, chess_position):
 	# recognized by _is_wall_piece()/add_wall_piece_moves() so it's a genuine
 	# dead square, not just a piece with no moves of its own). Recorded (like
 	# a promotion) so undo/redo can restore the original piece type/sprite.
-	if _petrifying == piece_to_move:
+	if not broke and _petrifying == piece_to_move:
 		_petrifying = null
 		Globals.dprint("[petrified] converting piece at %s to WALL" % chess_position)
 		record["petrified_from"] = piece_to_move.piece_type
@@ -1443,10 +1627,18 @@ func castle_rook(rook_position, new_rook_position):
 	rook_to_move_square.white = rook_to_move.white
 	
 func get_en_passant_piece():
-	if en_passant_square[1] == "6":
-		return get_piece(en_passant_square[0] + "5")
-	else:
+	# White pawns always start on rank 2, so a white double-step's en passant
+	# square is always rank 3, regardless of board length -- the actual pawn is
+	# one rank further at 4. Black's start/pawn ranks move with board length
+	# (e.g. rank 9/7 on Long Board), so its en passant square rank is derived
+	# from length instead of the old hardcoded "rank 6" (an 8-rank-board-only
+	# assumption that silently broke en passant on Long/Short Board) -- the
+	# actual pawn is one rank BEHIND the en passant square either way.
+	if en_passant_square.length() == 2 and en_passant_square[1] == "3":
 		return get_piece(en_passant_square[0] + "4")
+	else:
+		var captured_rank = int(en_passant_square.substr(1)) - 1
+		return get_piece(en_passant_square[0] + str(captured_rank))
 		
 func redo():
 	if redo_moves.size() > 0:
@@ -1550,6 +1742,16 @@ func redo_individual_move():
 	
 func undo():
 	if moves.size() > 0:
+		# Vs-computer games get a limited number of Undos per battle (hotseat
+		# is unrestricted -- there's no AI to guard against there). Redo isn't
+		# gated: it can only return you to a position you already reached,
+		# never show you a different future, so it isn't the same kind of
+		# "cheating" risk Undo is.
+		if computer_opponent and undo_charges_remaining == 0:
+			Globals.dprint("[undo] no Undo charges left this battle")
+			return
+		if computer_opponent and undo_charges_remaining > 0:
+			undo_charges_remaining -= 1
 		freeze_buttons()
 		freeze_pieces()
 		black_move_counter -= 1
@@ -1779,10 +1981,10 @@ func get_square(chess_location):
 			
 func get_piece(chess_location):
 	chess_location = chess_location.replace(" ", "")
-	
+
 	for piece in get_tree().get_nodes_in_group("pieces"):
 
-		if chess_location in piece.chess_position and !piece.dead:
+		if chess_location == piece.chess_position and !piece.dead:
 			return piece
 			
 func set_previous_square(chess_position):

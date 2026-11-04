@@ -37,6 +37,10 @@ var piece_modifiers = []
 # Ply count (board.moves.size()) at/after which a timed piece may move again.
 var cooldown_until = 0
 
+# Metronome modifier only: alternates every time board.apply_modifier_filters()
+# processes this piece's own side's turn (true = resting this turn).
+var metronome_resting = false
+
 # The square this piece started the battle on — its slot in the run army.
 var origin = ""
 
@@ -147,6 +151,40 @@ func _draw():
 	# there's real icon art.
 	if has_modifier("zombie"):
 		_draw_badge(Vector2(12, -12), "Z")
+	# Slippery: an "S" badge. Has no legal moves of its own; click it to offer
+	# spending the whole turn uprighting it instead (board.prompt_slippery_correction).
+	# Placeholder until there's real fallen-over art.
+	if has_modifier("slippery"):
+		_draw_badge(Vector2(-12, 12), "S")
+	# Metronome: an "M" badge, but only while actually resting this turn --
+	# looks completely normal on its active turns. Placeholder until there's
+	# real art.
+	if has_modifier("metronome") and metronome_resting:
+		_draw_badge(Vector2(-12, 12), "M")
+	# Vampiric: a "V" badge -- capturing grants one bonus move. Placeholder
+	# until there's real icon art.
+	if has_modifier("vampiric"):
+		_draw_badge(Vector2(12, 12), "V")
+	# Martyr: an "X" badge -- if captured, the capturer dies too. Placeholder
+	# until there's real icon art.
+	if has_modifier("martyr"):
+		_draw_badge(Vector2(12, 12), "X")
+	# Chained: a "C" badge -- leashed to within CHAINED_LEASH squares of its
+	# starting square. Placeholder until there's real icon art.
+	if has_modifier("chained"):
+		_draw_badge(Vector2(12, 12), "C")
+	# Pacifist: an "N" badge -- can move, but never capture. Placeholder until
+	# there's real icon art.
+	if has_modifier("pacifist"):
+		_draw_badge(Vector2(12, 12), "N")
+	# Duelist: a "D" badge -- can only move by capturing. Placeholder until
+	# there's real icon art.
+	if has_modifier("duelist"):
+		_draw_badge(Vector2(12, 12), "D")
+	# Berserker: a "!" badge -- must capture if it can. Placeholder until
+	# there's real icon art.
+	if has_modifier("berserker"):
+		_draw_badge(Vector2(12, 12), "!")
 	# Brittle curse: a warning ring, amber (1 turn left) then red and thicker
 	# (last chance before it shatters). Placeholder until there's real art.
 	if brittle_stage == 1:
@@ -179,6 +217,12 @@ func _racist_light():
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta: float) -> void:
 
+	# Slippery pieces never have legal_moves (see board.apply_modifier_filters),
+	# so the normal pickup/drag branch below never fires for them -- a fresh
+	# click instead offers to spend the whole turn uprighting it.
+	if has_mouse and Input.is_action_just_pressed("left_click") and !picked_up and has_modifier("slippery"):
+		board.prompt_slippery_correction(self)
+		return
 
 	if has_mouse and Input.is_action_pressed("left_click") and !picked_up and legal_moves.size() > 0:
 

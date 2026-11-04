@@ -39,6 +39,12 @@ const CARD_OFFERS = [
 	{"kind": "material", "value": "iron",    "cost": 65,  "desc": "[Material] Iron (uncapturable)"},
 	{"kind": "modifier", "value": "double",  "cost": 200, "desc": "[Modifier] Double (move twice)"},
 	{"kind": "modifier", "value": "zombie", "cost": 120, "desc": "[Modifier] Zombie (demotes a rung instead of dying, if captured)"},
+	# Rare and priced like it: conditional (needs a landed capture), but the
+	# payoff is the same bonus-move ceiling Double gets unconditionally.
+	{"kind": "modifier", "value": "vampiric", "cost": 220, "desc": "[Modifier] Vampiric (capturing grants one bonus move -- rare)"},
+	{"kind": "modifier", "value": "martyr",   "cost": 90,  "desc": "[Modifier] Martyr (if captured, the capturing piece dies too)"},
+	{"kind": "modifier", "value": "duelist",  "cost": 70,  "desc": "[Modifier] Duelist (can only move by capturing)"},
+	{"kind": "modifier", "value": "berserker","cost": 70,  "desc": "[Modifier] Berserker (must capture if it can, otherwise moves freely)"},
 	{"kind": "movement", "value": "knight",  "cost": 80,  "desc": "[Movement] Knight (add a knight's leap)"},
 	{"kind": "movement", "value": "bishop",  "cost": 80,  "desc": "[Movement] Bishop (add diagonal sliding)"},
 	{"kind": "movement", "value": "rook",    "cost": 80,  "desc": "[Movement] Rook (add orthogonal sliding)"},

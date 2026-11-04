@@ -196,6 +196,13 @@ func _configure_and_start(m, vs_computer):
 	player_white = true
 	board.computer_opponent = vs_computer
 	board.player_white = true
+	# Vs-computer Undo limiting: 1 baseline, +1 if the "mulligan" relic is
+	# owned during a run (relics don't exist outside a run, so a standalone
+	# "vs Computer" game from mode-select always gets exactly 1). Hotseat
+	# games never consult this (see board.undo()).
+	board.undo_charges_remaining = 1
+	if RunState.in_run and RunState.has_relic("mulligan"):
+		board.undo_charges_remaining += 1
 	# Resolve the starting placements first, so the roster can be derived from them.
 	var pl
 	if m.has("placements"):
@@ -237,9 +244,16 @@ func _init_engine():
 	var vpath = _variant_path_override if _variant_path_override != "" else _variants_path()
 	send_to_stockfish("setoption name VariantPath value " + vpath)
 	send_to_stockfish("setoption name UCI_Variant value " + current_variant)
-	# Runs are meant to be beatable: throttle the AI right down (0 = weakest).
+	# Difficulty ramps per floor via the engine's own calibrated UCI_Elo option
+	# (RunState.floor_elo() ramps the chosen tier's start->end across the run
+	# plus a fresh +/-100 roll every floor; elo_to_uci_elo() clamps to what
+	# the engine will actually accept, 500-2850).
 	if RunState.in_run:
-		send_to_stockfish("setoption name Skill Level value 0")
+		var target_elo = RunState.floor_elo(RunState.floor)
+		var uci_elo = RunState.elo_to_uci_elo(target_elo)
+		send_to_stockfish("setoption name UCI_LimitStrength value true")
+		send_to_stockfish("setoption name UCI_Elo value " + str(uci_elo))
+		Globals.dprint("[difficulty] floor %d (%s) target Elo %d -> UCI_Elo %d" % [RunState.floor, RunState.difficulty_tier, target_elo, uci_elo])
 
 	if board.generated_fen_string.length() > 0:
 		# Use the generated FEN (stones become "*" wall squares the engine respects).
