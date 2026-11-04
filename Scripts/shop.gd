@@ -45,6 +45,12 @@ const CARD_OFFERS = [
 	{"kind": "modifier", "value": "martyr",   "cost": 90,  "desc": "[Modifier] Martyr (if captured, the capturing piece dies too)"},
 	{"kind": "modifier", "value": "duelist",  "cost": 70,  "desc": "[Modifier] Duelist (can only move by capturing)"},
 	{"kind": "modifier", "value": "berserker","cost": 70,  "desc": "[Modifier] Berserker (must capture if it can, otherwise moves freely)"},
+	{"kind": "modifier", "value": "bodyguard","cost": 110, "desc": "[Modifier] Bodyguard (uncapturable while next to your king)"},
+	{"kind": "modifier", "value": "phoenix",  "cost": 140, "desc": "[Modifier] Phoenix (first death each battle, it comes back)"},
+	{"kind": "modifier", "value": "inspire",  "cost": 75,  "desc": "[Modifier] Inspire (neighbours earn double capture gold)"},
+	{"kind": "modifier", "value": "swap",     "cost": 60,  "desc": "[Modifier] Swap (once per battle, trade places with a friendly piece)"},
+	{"kind": "modifier", "value": "veteran",  "cost": 50,  "desc": "[Modifier] Veteran (+1 capture gold per capture it's made this run)"},
+	{"kind": "modifier", "value": "sanctuary","cost": 85,  "desc": "[Modifier] Sanctuary (once per battle, can't be captured the turn it's first attacked)"},
 	{"kind": "movement", "value": "knight",  "cost": 80,  "desc": "[Movement] Knight (add a knight's leap)"},
 	{"kind": "movement", "value": "bishop",  "cost": 80,  "desc": "[Movement] Bishop (add diagonal sliding)"},
 	{"kind": "movement", "value": "rook",    "cost": 80,  "desc": "[Movement] Rook (add orthogonal sliding)"},
@@ -59,6 +65,29 @@ const CARD_OFFERS = [
 	{"kind": "grow_pawn", "value": "short", "cost": 50, "desc": "[Piece] Grow Short Pawn (add a brand new pawn, one rank ahead)"},
 	{"kind": "grow_pawn", "value": "full",  "cost": 90, "desc": "[Piece] Grow Pawn (add a brand new full pawn, one rank ahead)"},
 ]
+
+# Downgrades: never sold, only listed in the Test Shop queue builder so they
+# can be put on a piece and played. Nothing in a real run hands these out yet.
+const DOWNGRADE_OFFERS = [
+	{"kind": "modifier", "value": "racist",       "cost": 0, "desc": "[Downgrade] Racist (stuck on its starting square colour)"},
+	{"kind": "modifier", "value": "time1",        "cost": 0, "desc": "[Downgrade] Time 1 (locked 1 turn after moving)"},
+	{"kind": "modifier", "value": "time2",        "cost": 0, "desc": "[Downgrade] Time 2 (locked 2 turns after moving)"},
+	{"kind": "modifier", "value": "slippery",     "cost": 0, "desc": "[Downgrade] Slippery (spend a turn to upright it)"},
+	{"kind": "modifier", "value": "petrify",      "cost": 0, "desc": "[Downgrade] Petrify (turns to a wall after capturing)"},
+	{"kind": "modifier", "value": "atomic",       "cost": 0, "desc": "[Downgrade] Atomic (capturing blows itself + neighbours up)"},
+	{"kind": "modifier", "value": "slow_starter", "cost": 0, "desc": "[Downgrade] Slow Starter (frozen its first 3 turns)"},
+	{"kind": "modifier", "value": "metronome",    "cost": 0, "desc": "[Downgrade] Metronome (rests every other turn)"},
+	{"kind": "modifier", "value": "chained",      "cost": 0, "desc": "[Downgrade] Chained (stays within 3 squares of its start)"},
+	{"kind": "modifier", "value": "pacifist",     "cost": 0, "desc": "[Downgrade] Pacifist (can never capture)"},
+	{"kind": "modifier", "value": "cursed_gold",  "cost": 0, "desc": "[Downgrade] Cursed Gold (no gold for its captures)"},
+	{"kind": "modifier", "value": "traitor",      "cost": 0, "desc": "[Downgrade] Traitor (15% chance a battle starts with it on the enemy side)"},
+	{"kind": "modifier", "value": "wimp",         "cost": 0, "desc": "[Downgrade] Wimp (flees if attacked at the start of 2 of your turns in a row)"},
+	{"kind": "modifier", "value": "rusted",       "cost": 0, "desc": "[Downgrade] Rusted (25% chance a move fails and the turn is lost)"},
+]
+
+# Everything the Test Shop queue builder lists: real cards, then downgrades.
+func _test_cards() -> Array:
+	return CARD_OFFERS + DOWNGRADE_OFFERS
 
 var _offers := []   # rolled offers this visit (cards + at most one relic) -- real-run flow only
 var _picking := -1  # index into _offers awaiting a target pick, or -1 for the main list -- real-run flow only
@@ -124,8 +153,9 @@ func _render_queue_builder() -> void:
 	title.text = "How many of each do you want to test?"
 	offers_box.add_child(title)
 
-	for i in CARD_OFFERS.size():
-		var card = CARD_OFFERS[i]
+	var cards = _test_cards()
+	for i in cards.size():
+		var card = cards[i]
 		var row = HBoxContainer.new()
 		var lbl = Label.new()
 		lbl.text = card["desc"]
@@ -139,6 +169,21 @@ func _render_queue_builder() -> void:
 		offers_box.add_child(row)
 		_queue_spins[i] = spin
 
+	# Relics: tick to own them for the test battle (no purchase needed).
+	var relic_title = Label.new()
+	relic_title.text = "Relics to own while testing:"
+	offers_box.add_child(relic_title)
+	for id in Globals.RELICS:
+		var cb = CheckBox.new()
+		cb.text = "%s: %s" % [Globals.RELICS[id]["name"], Globals.RELICS[id]["desc"]]
+		cb.button_pressed = RunState.has_relic(id)
+		cb.toggled.connect(func(on):
+			if on:
+				RunState.add_relic(id)
+			else:
+				RunState.relics.erase(id))
+		offers_box.add_child(cb)
+
 	var start_btn = Button.new()
 	start_btn.text = "Start Testing"
 	start_btn.pressed.connect(_on_start_testing_pressed)
@@ -147,10 +192,11 @@ func _render_queue_builder() -> void:
 
 func _on_start_testing_pressed() -> void:
 	_queue.clear()
+	var cards = _test_cards()
 	for i in _queue_spins:
 		var count = int(_queue_spins[i].value)
 		for n in count:
-			_queue.append(CARD_OFFERS[i])
+			_queue.append(cards[i])
 	if _queue.is_empty():
 		return
 	_queue_pos = 0
@@ -315,7 +361,7 @@ func _update_piece_validity_visuals(card) -> void:
 # Human-readable list of which pieces a card can currently land on, for the
 # on-screen hint (materials/modifiers take anything, so just say so).
 func _valid_target_hint(card) -> String:
-	if card["kind"] == "modifier" and card["value"] == "zombie":
+	if card["kind"] == "modifier" and card["value"] in Globals.NON_ROYAL_MODIFIERS:
 		return "any non-royal piece"
 	if card["kind"] == "material" or card["kind"] == "modifier":
 		return "any piece"
@@ -532,9 +578,9 @@ func _target_ok(card, piece_type, rank: int = -9999, file: int = -9999) -> bool:
 		"material":
 			return true
 		"modifier":
-			# A respawning royal would break checkmate/extinction detection
-			# outright -- never a legal target for this one modifier.
-			if card["value"] == "zombie" and Globals.PIECE_REGISTRY.get(piece_type, {}).get("royal", false):
+			# A respawning / vanishing / defecting / walled-off royal would break
+			# checkmate and extinction detection outright (see NON_ROYAL_MODIFIERS).
+			if card["value"] in Globals.NON_ROYAL_MODIFIERS and Globals.PIECE_REGISTRY.get(piece_type, {}).get("royal", false):
 				return false
 			return true
 		"movement":
@@ -554,6 +600,14 @@ func _render_offers() -> void:
 	for c in offers_box.get_children():
 		c.queue_free()
 	gold_label.text = "Gold: %d" % RunState.gold
+	# Loaded Dice: one free reroll of this visit's whole offer list per floor.
+	if RunState.has_relic("loaded_dice") and RunState.dice_used_floor != RunState.floor:
+		var reroll = Button.new()
+		reroll.text = "Reroll the shop (Loaded Dice, free once this floor)"
+		reroll.pressed.connect(func():
+			RunState.dice_used_floor = RunState.floor
+			_roll_offers())
+		offers_box.add_child(reroll)
 	if _offers.is_empty():
 		var none = Label.new()
 		none.text = "Nothing left to buy."

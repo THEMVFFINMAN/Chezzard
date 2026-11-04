@@ -118,6 +118,21 @@ var _petrifying = null
 # further down in move(). No undo support yet -- undoing an atomic capture
 # will not bring the exploded pieces back (placeholder, like the petrify badge).
 var _exploding = null
+
+# The Necromancer: one-sided Crazyhouse. Every piece Black captures goes into
+# Black's hand (black_hand, piece enums), and the engine may drop it back onto
+# the board as Black's own (bestmove "Q@d4" -> drop_piece()). White's captures
+# just leave the board as normal -- the variant sets dropRegionWhite = -, and
+# White's hand is never sent in the FEN, so the player can never drop.
+@export var necromancer := false
+var black_hand := []
+var _hand_label: Label = null
+
+# Relic / modifier battle state (see Globals.RELICS / Globals.MODIFIERS).
+@export var opening_book_moves := 0  # Opening Book relic: bonus moves before the enemy's first turn
+var _bonus_turn_pending := false     # between the two halves of an Opening Book turn
+var _gravedigger_count := 0          # Gravedigger relic: captures so far this battle
+var _mate_by_pawn := false           # Executioner relic: the winning mate was a pawn move
 # Testing hook: assign materials to squares at startup, e.g. {"d1": "gold"}.
 @export var test_materials := {}
 # Per-game { square -> [modifier names] }, set from the mode's placements.
@@ -194,6 +209,8 @@ func build_board():
 	_apply_test_materials()
 	if chess960:
 		_record_960_start_files()
+	black_hand = []
+	_update_hand_label()
 	freeze_black_pieces()
 
 # Chess960: the rooks aren't on a/h, so record which file each side's rooks
@@ -258,9 +275,54 @@ func _is_wall_piece(piece):
 		return false
 	if piece.piece_material == "iron" or piece.piece_material == "stone":
 		return true
-	return piece.piece_type == Globals.Piece_Type_ENUMs.STONE \
+	if piece.piece_type == Globals.Piece_Type_ENUMs.STONE \
 		or piece.piece_type == Globals.Piece_Type_ENUMs.IRONQUEEN \
-		or piece.piece_type == Globals.Piece_Type_ENUMs.WALL
+		or piece.piece_type == Globals.Piece_Type_ENUMs.WALL:
+		return true
+	if piece is Dictionary:
+		return false  # _zombie_square_ok()'s stand-in -- no modifiers to check
+	# Sanctuary (this enemy turn only) and an on-duty Bodyguard are walls too.
+	if piece.sanctuary_active:
+		return true
+	return piece.has_modifier("bodyguard") and _bodyguard_on_duty(piece)
+
+# Bodyguard: on duty while next to one of its own royals -- unless it's
+# attacking the enemy royal, since a wall's check is invisible to the engine.
+func _bodyguard_on_duty(piece):
+	if piece.dead:
+		return false
+	var guarding = false
+	for r in _royals(piece.white):
+		if _chebyshev(piece.chess_position, r.chess_position) == 1:
+			guarding = true
+			break
+	if not guarding:
+		return false
+	for r in _royals(not piece.white):
+		if _attacks_geom(piece, r.chess_position):
+			return false
+	return true
+
+# Every live royal piece of a colour (any registry "royal" type, not just
+# KING/PRINCE like _find_royal()).
+func _royals(white):
+	var out = []
+	for p in get_tree().get_nodes_in_group("white_pieces" if white else "black_pieces"):
+		if not p.dead and Globals.PIECE_REGISTRY.get(p.piece_type, {}).get("royal", false):
+			out.append(p)
+	return out
+
+func _chebyshev(a, b):
+	var df = abs(possible_letters.find(a[0]) - possible_letters.find(b[0]))
+	var dr = abs(int(a.substr(1)) - int(b.substr(1)))
+	return max(df, dr)
+
+# Is `piece` attacked by any live enemy piece right now?
+func _is_attacked(piece):
+	for p in get_tree().get_nodes_in_group("black_pieces" if piece.white else "white_pieces"):
+		if not p.dead and _attacks(p, piece.chess_position):
+			return true
+	return false
 
 # in_check: the side to move is in check (from the engine eval). A wall/iron piece
 # can't capture and can't move the king, so the ONLY way it can resolve a check is
@@ -290,6 +352,29 @@ func add_wall_piece_moves(in_check = false):
 				if block_squares.has(m):
 					keep.append(m)  # only interpositions resolve the check
 			piece.legal_moves = keep
+		# A wall piece standing in a pin must not step out of it -- the engine
+		# never sees wall moves, so nothing else stops it exposing the king.
+		piece.legal_moves = piece.legal_moves.filter(func(m): return _wall_move_safe(piece, m))
+
+# Would moving wall piece `piece` to the empty square `to` leave its own royal
+# attacked? Temporarily applies the move to the square occupancy _attacks()
+# reads, then restores it.
+func _wall_move_safe(piece, to):
+	var from_pos = piece.chess_position
+	var from_sq = get_square(from_pos)
+	var to_sq = get_square(to)
+	from_sq.has_piece = false
+	to_sq.has_piece = true
+	piece.chess_position = to
+	var safe = true
+	for r in _royals(piece.white):
+		if r != piece and _is_attacked(r):
+			safe = false
+			break
+	piece.chess_position = from_pos
+	to_sq.has_piece = false
+	from_sq.has_piece = true
+	return safe
 
 # Squares where the side to move can interpose against a check. Computed
 # geometrically (NOT from the engine's legal moves) because the engine sees iron as
@@ -314,6 +399,10 @@ func _check_block_squares():
 func _attacks(piece, target):
 	if _is_wall_piece(piece):
 		return false
+	return _attacks_geom(piece, target)
+
+# _attacks() without the wall check -- pure movement geometry + blocking.
+func _attacks_geom(piece, target):
 	var pf = possible_letters.find(piece.chess_position[0])
 	var pr = int(piece.chess_position.substr(1, piece.chess_position.length() - 1))
 	var tf = possible_letters.find(target[0])
@@ -606,6 +695,8 @@ func apply_modifier_filters():
 				_filter_duelist(piece)
 			if piece.has_modifier("berserker"):
 				_filter_berserker(piece)
+			if piece.has_modifier("swap") and not piece.swap_used and piece.white == white_to_move:
+				_add_swap_targets(piece)
 	# Double: during the second half, only the double piece may move.
 	if double_pending_piece != null:
 		for piece in get_tree().get_nodes_in_group("pieces"):
@@ -619,6 +710,32 @@ func apply_modifier_filters():
 			# without this the double piece's collision stays disabled and it can't be
 			# grabbed again.
 			double_pending_piece.get_node("CollisionShape2D").disabled = false
+
+# Swap: every friendly square it could trade places with becomes a "move" (the
+# drop lands on a friendly piece; move() routes that to _do_swap()). Both
+# squares stay occupied, so no line to the king opens or closes -- which is
+# also why it's never offered in check (a swap can't resolve one).
+func _add_swap_targets(piece):
+	if double_pending_piece != null or _bonus_turn_pending or top_level.side_in_check:
+		return
+	if Globals.PIECE_REGISTRY.get(piece.piece_type, {}).get("royal", false) or _is_wall_piece(piece):
+		return
+	for f in get_tree().get_nodes_in_group("white_pieces" if piece.white else "black_pieces"):
+		if f.dead or f == piece or _is_wall_piece(f):
+			continue
+		if Globals.PIECE_REGISTRY.get(f.piece_type, {}).get("royal", false):
+			continue
+		if not _pawn_rank_ok(piece.piece_type, f.chess_position) or not _pawn_rank_ok(f.piece_type, piece.chess_position):
+			continue
+		if f.chess_position not in piece.legal_moves:
+			piece.legal_moves.append(f.chess_position)
+
+# A pawn-type piece can't be swapped onto either back rank (stuck/unpromoted).
+func _pawn_rank_ok(piece_type, sq):
+	if not Globals.is_pawn_type(piece_type):
+		return true
+	var r = int(sq.substr(1))
+	return r != 1 and r != length
 
 func _filter_colorbound(piece):
 	if piece.legal_moves.is_empty():
@@ -796,8 +913,19 @@ func check_game_over(in_check):
 	Globals.dprint("[game_over] mated_white=%s in_check=%s head_of_snake=%s -> %s" % [mated_white, in_check, this_side_has_head_of_snake, text])
 	game_over_emitted = true
 	if not draw:
+		_mate_by_pawn = _last_move_was_player_pawn()
 		_award_win_once(not white_to_move)  # the side to move lost
 	emit_signal("game_over", text)
+
+# Executioner: the last real move was the player's, made by a pawn that's still
+# a pawn (a promotion that mates doesn't count -- it isn't a pawn any more).
+func _last_move_was_player_pawn():
+	if moves.is_empty():
+		return false
+	var r = moves.back()
+	if r.get("drop", false) or r.get("pass", false) or r.get("swap", false):
+		return false
+	return r["piece"].white == player_white and Globals.is_pawn_type(r["piece"].piece_type) and r.get("promoted_to", null) == null
 
 func _side_to_move_has_move():
 	var group = "white_pieces" if white_to_move else "black_pieces"
@@ -821,14 +949,36 @@ func _award_capture(capturer, captured):
 		return
 	var eff = Globals.MATERIAL_EFFECTS.get(capturer.piece_material, {})
 	var amount = int(round(Globals.piece_value(captured.piece_type) * eff.get("money_mult", 1.0)))
+	if _inspired(capturer, captured.chess_position):
+		amount *= 2  # Inspire: a friendly inspire piece next to the capture
+	if capturer.has_modifier("veteran") and capturer.origin != "":
+		amount += RunState.veteran_kills.get(capturer.origin, 0)  # +1 per earlier capture this run
+		RunState.add_veteran_kill(capturer.origin)
+		capturer.queue_redraw()  # its badge shows the kill count
 	if RunState.has_relic("bloodstone"):
 		amount += 2  # Bloodstone relic: flat bonus per capture
-	RunState.add_gold(amount, "capture")
+	if RunState.has_relic("gravedigger"):
+		_gravedigger_count += 1
+		amount += _gravedigger_count  # Gravedigger relic: +1, +2, +3, ... this battle
+	if capturer.has_modifier("cursed_gold"):
+		amount = 0  # Cursed Gold: nothing at all, bonuses included
+	if amount > 0:
+		RunState.add_gold(amount, "capture")
 	var break_chance = eff.get("break_chance", 0.0)
 	if RunState.has_relic("glassblower"):
 		break_chance = 0.0  # Glassblower's Gloves relic: glass never shatters
 	if break_chance > 0.0 and randf() < break_chance:
 		_glass_breaking = capturer
+
+# Inspire: some OTHER live friendly piece with "inspire" stands next to the
+# capturer's start square or the square it captured on.
+func _inspired(capturer, capture_sq):
+	for p in get_tree().get_nodes_in_group("white_pieces" if capturer.white else "black_pieces"):
+		if p.dead or p == capturer or not p.has_modifier("inspire"):
+			continue
+		if _chebyshev(p.chess_position, capturer.chess_position) == 1 or _chebyshev(p.chess_position, capture_sq) == 1:
+			return true
+	return false
 
 # Blood: when one of YOUR blood pieces is captured it's lost PERMANENTLY from the
 # run army (recorded for the next battle's rebuild). It is not royal — losing it
@@ -857,6 +1007,10 @@ func _award_win_once(winner_white):
 		var amount = 50 + 10 * RunState.floor
 		if RunState.has_relic("merchants_scale"):
 			amount = int(round(amount * 1.5))  # Merchant's Scale relic
+		if RunState.has_relic("executioner") and _mate_by_pawn:
+			amount *= 3  # Executioner relic: the mating move was a pawn's
+		if RunState.has_relic("crown_jewels"):
+			amount += 25 * _royals(player_white).size()  # Crown Jewels relic
 		RunState.add_gold(amount, "win")
 
 # Unroyal: a side with no pieces left has lost (you win by capturing everything).
@@ -1275,6 +1429,16 @@ func move(previous_chess_position, chess_position):
 	else:
 		piece_to_move = get_piece(previous_chess_position)
 
+	# Swap: dropped onto a friendly piece -> the two trade places instead.
+	var swap_with = get_piece(chess_position)
+	if swap_with != null and swap_with != piece_to_move and swap_with.white == piece_to_move.white and piece_to_move.has_modifier("swap"):
+		_do_swap(piece_to_move, swap_with, previous_chess_position, chess_position, legal_snapshot)
+		return
+	# Rusted: the move may simply fail, spending the whole turn.
+	if _rust_fails(piece_to_move):
+		_rust_fail(piece_to_move, previous_chess_position, legal_snapshot)
+		return
+
 	# Chess960: the engine reports castling as the king landing on its own rook
 	# (UCI_Chess960 notation), not g1/c1. Detect that here, before the generic
 	# capture logic below runs (which would otherwise delete the rook as a
@@ -1295,6 +1459,7 @@ func move(previous_chess_position, chess_position):
 	var rook_king_movement = []
 	var second_square = get_square(chess_position)
 	var en_passant_undo_check = check_en_passant()
+	var captured_before = captured_pieces.size()
 
 	if _castle_rook_hint_square != "":
 		# The player (or a redo cascade) may have snapped the king's sprite to the
@@ -1305,16 +1470,21 @@ func move(previous_chess_position, chess_position):
 	if second_square.has_piece:
 		var captured = get_piece(chess_position)
 		if captured != null:
+			var reborn = captured.has_modifier("phoenix")
 			_award_capture(piece_to_move, captured)
-			_on_blood_death(captured)
+			if not reborn:
+				_on_blood_death(captured)  # a phoenix isn't dead yet -- see _phoenix_respawn()
 			captured.delete_self()
+			# Phoenix: back on its starting square as the same piece, once.
+			if reborn:
+				_phoenix_respawn(captured)
 			# Zombie: captured while NOT currently a pawn (so a piece
 			# that promoted back into something else since its last
 			# resurrection still counts) respawns as a plain pawn. Checking
 			# is_pawn_type() here instead of consuming the modifier tag is
 			# what makes the charge re-arm on promotion and get spent for
 			# good on a pawn death -- see the comment on the modifier itself.
-			if captured.has_modifier("zombie") and not Globals.is_pawn_type(captured.piece_type):
+			elif captured.has_modifier("zombie") and not Globals.is_pawn_type(captured.piece_type):
 				_zombie_respawn(captured)
 			# Martyr: the piece just captured takes its capturer down with it.
 			# Independent of zombie above (one's about the VICTIM respawning,
@@ -1349,8 +1519,23 @@ func move(previous_chess_position, chess_position):
 	conduct_castling_checks(piece_to_move, previous_chess_position, chess_position)
 	
 	conduct_en_passant_check(piece_to_move, previous_chess_position, chess_position)
-	
-		
+
+	# Necromancer: whatever Black just captured (normal or en passant) goes to
+	# Black's hand. Read off captured_pieces before martyr/glass/atomic below
+	# add their own deaths, and skip a zombie that's about to respawn for White
+	# instead (it can't be in both places).
+	var hand_added = []
+	if necromancer and not piece_to_move.white:
+		for i in range(captured_before, captured_pieces.size()):
+			var c = captured_pieces[i]
+			if c.has_modifier("phoenix") or (c.has_modifier("zombie") and not Globals.is_pawn_type(c.piece_type)):
+				continue
+			hand_added.append(_hand_type_for(c.piece_type))
+		black_hand.append_array(hand_added)
+		if hand_added.size() > 0:
+			Globals.dprint("[necromancer] captured into hand: %s" % [hand_added.map(func(t): return Globals.give_piece_name_from_piece_type(t))])
+			_update_hand_label()
+
 	piece_to_move.chess_position = chess_position
 
 	# Brittle curse: moving the targeted piece lifts the threat immediately
@@ -1378,11 +1563,24 @@ func move(previous_chess_position, chess_position):
 	var double_first = is_player_piece and piece_to_move.has_modifier("double") and double_pending_piece == null
 	var vampiric_bonus = is_player_piece and piece_to_move.has_modifier("vampiric") and captured_piece and double_pending_piece == null
 	var double_second = double_pending_piece == piece_to_move
+	# Opening Book: the battle's very first move keeps the turn for one more
+	# move by ANY piece (unlike double, which pins the second move to the same
+	# piece). Tagged first/second below like a double, so undo/redo step over
+	# the pair the same way.
+	var bonus_first = is_player_piece and opening_book_moves > 0 and moves.size() == 0 and not double_first and not vampiric_bonus
+	var bonus_second = _bonus_turn_pending and not double_first and not vampiric_bonus
 	if double_first or vampiric_bonus:
 		double_pending_piece = piece_to_move
+	elif bonus_first:
+		opening_book_moves -= 1
+		_bonus_turn_pending = true
+		en_passant_square = ""  # it's still our move -- no en passant for anyone
+		en_passant_pawn_location = ""
 	else:
 		if double_second:
 			double_pending_piece = null
+		if bonus_second:
+			_bonus_turn_pending = false
 		_flip_turn(piece_to_move.white)
 
 	var record = {
@@ -1404,6 +1602,8 @@ func move(previous_chess_position, chess_position):
 		"checks_after": [white_checks, black_checks],  # updated by register_check() if this move checks
 		"cooldown_before": piece_to_move.cooldown_until,
 		"cooldown_after": piece_to_move.cooldown_until,  # set below if this piece is timed
+		"hand_added": hand_added,
+		"opening_bonus": bonus_first,
 	}
 	moves.append(record)
 
@@ -1415,7 +1615,7 @@ func move(previous_chess_position, chess_position):
 			record["cooldown_after"] = piece_to_move.cooldown_until
 
 	# Tag both halves of a completed double move so undo/redo step over the pair.
-	if double_second:
+	if double_second or bonus_second:
 		record["double_role"] = "second"
 		if moves.size() >= 2:
 			moves[moves.size() - 2]["double_role"] = "first"
@@ -1532,20 +1732,356 @@ func _finish_move(prev, cur):
 		return
 	if blast_on_capture and _check_atomic_win():
 		return
-	if double_pending_piece != null:
+	if double_pending_piece != null or _bonus_turn_pending:
 		# First half of a double move: keep the turn, re-query the same side's moves
 		# (restricted to this piece in apply_modifier_filters), no AI handoff.
+		# Opening Book's first half does the same, minus the one-piece restriction
+		# -- so the whole side gets re-enabled here instead.
 		for piece in get_tree().get_nodes_in_group("pieces"):
 			piece.legal_moves = []
+		if _bonus_turn_pending:
+			if white_to_move:
+				unfreeze_white_pieces()
+			else:
+				unfreeze_black_pieces()
 		top_level.send_to_stockfish("position fen " + generate_fen_string())
 		top_level.send_to_stockfish("eval")
 		top_level.perft()
 		return
+	_on_turn_passed()
 	send_move(prev, cur)  # already sends "eval" (alongside "go depth 10") -- don't duplicate it here
 	for piece in get_tree().get_nodes_in_group("pieces"):
 		piece.legal_moves = []
 	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	top_level.perft()
+
+# Runs once per real hand-over of the turn, after the move is fully resolved
+# (captures, explosions, etc.) and right before the new position goes to the
+# engine -- so walls toggled here are what the engine sees.
+func _on_turn_passed():
+	var player_group = "white_pieces" if player_white else "black_pieces"
+	if white_to_move == player_white:
+		# Your turn starts: last enemy turn's Sanctuary wears off, and every
+		# Wimp checks whether it's (still) under attack.
+		for p in get_tree().get_nodes_in_group(player_group):
+			if p.dead:
+				continue
+			if p.sanctuary_active:
+				p.sanctuary_active = false
+				p.queue_redraw()
+			if p.has_modifier("wimp"):
+				p.wimp_count = p.wimp_count + 1 if _is_attacked(p) else 0
+				if p.wimp_count >= Globals.MODIFIERS["wimp"]["flee_after"]:
+					_flee(p)
+				else:
+					p.queue_redraw()
+	else:
+		# The enemy's turn starts: a Sanctuary piece it's attacking gets its one
+		# protected turn (never while it's checking the enemy royal -- a wall's
+		# check is invisible to the engine).
+		for p in get_tree().get_nodes_in_group(player_group):
+			if p.dead or not p.has_modifier("sanctuary") or p.sanctuary_used:
+				continue
+			if not _is_attacked(p):
+				continue
+			var checking = false
+			for r in _royals(not p.white):
+				if _attacks_geom(p, r.chess_position):
+					checking = true
+			if checking:
+				continue
+			p.sanctuary_active = true
+			p.sanctuary_used = true
+			p.queue_redraw()
+			flash_message("Sanctuary! Your %s can't be captured this turn" % Globals.give_piece_name_from_piece_type(p.piece_type).capitalize())
+
+# Wimp: leaves the battle (not the run). Not added to captured_pieces, so
+# undo's capture-restore stack is untouched -- and, like brittle's shatter,
+# undo doesn't bring it back.
+func _flee(p):
+	var sq = get_square(p.chess_position)
+	sq.has_piece = false
+	sq.piece_type = Globals.Piece_Type_ENUMs.NONE
+	p.dead = true
+	p.global_position = Vector2(-200, -200)
+	flash_message("Your %s got scared and fled the battle!" % Globals.give_piece_name_from_piece_type(p.piece_type).capitalize())
+
+# Phoenix: same piece, same material, back at (or near) its starting square,
+# with every modifier but "phoenix" itself. No safe square -> it stays dead
+# (and only then counts as a real death for blood).
+func _phoenix_respawn(captured):
+	var is_white = captured.white
+	var home = captured.origin if captured.origin != "" else captured.chess_position
+	var t = captured.piece_type
+	var target_sq = home if _zombie_square_ok(home, is_white, t) else _zombie_nearest_safe_square(home, is_white, t)
+	if target_sq == "":
+		_on_blood_death(captured)
+		return
+	var new_piece = piece_scene.instantiate()
+	new_piece.white = is_white
+	new_piece.add_to_group("white_pieces" if is_white else "black_pieces")
+	new_piece.piece_type = t
+	new_piece.get_node("Sprite2D").play(("white_" if is_white else "black_") + Globals.give_piece_name_from_piece_type(t))
+	new_piece.chess_position = target_sq
+	new_piece.origin = captured.origin
+	new_piece.piece_material = captured.piece_material
+	var mods = captured.piece_modifiers.duplicate()
+	mods.erase("phoenix")
+	new_piece.apply_modifiers(mods)
+	var sq = get_square(target_sq)
+	new_piece.global_position = sq.global_position + sq.get_node("CollisionShape2D").shape.extents
+	add_child(new_piece)
+	sq.has_piece = true
+	sq.piece_type = t
+	sq.white = is_white
+	flash_message("Phoenix! Your %s rises again on %s" % [Globals.give_piece_name_from_piece_type(t).capitalize(), target_sq])
+
+# --- Rusted ---
+func _rust_fails(piece):
+	if not piece.has_modifier("rusted"):
+		return false
+	if computer_opponent and piece.white != player_white:
+		return false
+	if double_pending_piece != null or _bonus_turn_pending:
+		return false
+	if top_level.side_in_check:
+		return false  # passing while in check would leave the king capturable
+	return randf() < Globals.MODIFIERS["rusted"]["fail_chance"]
+
+# The move doesn't happen: the piece snaps home and the turn passes (a "pass"
+# record, so undo/redo still count it as a ply).
+func _rust_fail(piece, prev, legal_snapshot):
+	var sq = get_square(prev)
+	piece.global_position = sq.global_position + sq.get_node("CollisionShape2D").shape.extents
+	for m in piece.legal_moves:
+		get_square(m).get_node("CollisionShape2D").disabled = true
+		get_square(m).get_node("premove").visible = false
+	var record = {
+		"pass": true,
+		"piece": piece,
+		"en_passant": check_en_passant(),
+		"legal_snapshot": legal_snapshot,
+		"checks_before": [white_checks, black_checks],
+		"checks_after": [white_checks, black_checks],
+	}
+	en_passant_square = ""
+	en_passant_pawn_location = ""
+	_flip_turn(piece.white)
+	moves.append(record)
+	flash_message("Rusted! Your %s seized up -- turn lost" % Globals.give_piece_name_from_piece_type(piece.piece_type).capitalize())
+	_finish_move(prev, "")
+
+# --- Swap ---
+func _do_swap(a, b, prev, cur, legal_snapshot):
+	var a_sq = get_square(prev)
+	var b_sq = get_square(cur)
+	for m in a.legal_moves:
+		get_square(m).get_node("CollisionShape2D").disabled = true
+		get_square(m).get_node("premove").visible = false
+	var record = {
+		"swap": true,
+		"piece": a,
+		"other": b,
+		"from_square": a_sq,
+		"to_square": b_sq,
+		"en_passant": check_en_passant(),
+		"legal_snapshot": legal_snapshot,
+		"rook_flags_before": [white_rook_kingside_moved, white_rook_queenside_moved, black_rook_kingside_moved, black_rook_queenside_moved],
+		"checks_before": [white_checks, black_checks],
+		"checks_after": [white_checks, black_checks],
+	}
+	_apply_swap(record)
+	en_passant_square = ""
+	en_passant_pawn_location = ""
+	_flip_turn(a.white)
+	moves.append(record)
+	_finish_move(prev, cur)
+
+func _apply_swap(record):
+	var a = record["piece"]
+	var b = record["other"]
+	_mark_rook_moved_from(record["from_square"].chess_position, a)
+	_mark_rook_moved_from(record["to_square"].chess_position, b)
+	_place(a, record["to_square"])
+	_place(b, record["from_square"])
+	a.swap_used = true
+	a.queue_redraw()
+
+func _place(piece, sq):
+	piece.chess_position = sq.chess_position
+	piece.global_position = sq.global_position + sq.get_node("CollisionShape2D").shape.extents
+	sq.has_piece = true
+	sq.piece_type = piece.piece_type
+	sq.white = piece.white
+
+# A rook leaving its starting square by swap loses that side's castling right.
+func _mark_rook_moved_from(sq, piece):
+	if piece.piece_type != Globals.Piece_Type_ENUMs.ROOK:
+		return
+	if piece.white:
+		if sq == white_rook_kingside_start_file + "1":
+			white_rook_kingside_moved = true
+		elif sq == white_rook_queenside_start_file + "1":
+			white_rook_queenside_moved = true
+	else:
+		if sq == black_rook_kingside_start_file + str(length):
+			black_rook_kingside_moved = true
+		elif sq == black_rook_queenside_start_file + str(length):
+			black_rook_queenside_moved = true
+
+# --- Undo/redo for the non-move records (drop / pass / swap) ---
+func _undo_special(record):
+	if record.get("drop", false):
+		_undo_drop(record)
+		return
+	var piece = record["piece"]
+	white_to_move = piece.white
+	if record.get("swap", false):
+		_place(piece, record["from_square"])
+		_place(record["other"], record["to_square"])
+		var f = record["rook_flags_before"]
+		white_rook_kingside_moved = f[0]
+		white_rook_queenside_moved = f[1]
+		black_rook_kingside_moved = f[2]
+		black_rook_queenside_moved = f[3]
+		piece.swap_used = false
+		piece.queue_redraw()
+	# Restore exactly -- including "no en passant", or a double step being undone leaves a stale square.
+	en_passant_square = "" if "-" in record["en_passant"] else record["en_passant"]
+	pending_legal_snapshot = record["legal_snapshot"]
+	white_checks = record["checks_before"][0]
+	black_checks = record["checks_before"][1]
+
+func _redo_special(record):
+	if record.get("drop", false):
+		_redo_drop(record)
+		return
+	var piece = record["piece"]
+	white_to_move = not piece.white
+	if record.get("swap", false):
+		_apply_swap(record)
+	en_passant_square = ""
+	white_checks = record["checks_after"][0]
+	black_checks = record["checks_after"][1]
+
+# Floating one-line notice (Rusted, Phoenix, Traitor, ...), gone after a moment.
+func flash_message(text):
+	var layer = CanvasLayer.new()
+	var label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	label.add_theme_constant_override("outline_size", 6)
+	label.position = Vector2(16, 116)
+	add_child(layer)
+	layer.add_child(label)
+	get_tree().create_timer(2.5).timeout.connect(layer.queue_free)
+
+# --- Necromancer drops ---
+# The engine's bestmove for a drop is "<letter>@<square>" (e.g. "Q@d4", or
+# "+Q@d4" for a promoted drop), labelled by piece type only -- the colour is
+# always the side to move. Mirrors move()'s bookkeeping for a piece that comes
+# out of the hand instead of off another square.
+func drop_piece(piece_char, chess_position):
+	redo_moves.clear()
+	var legal_snapshot = {}
+	for snap_piece in get_tree().get_nodes_in_group("pieces"):
+		legal_snapshot[snap_piece.chess_position] = snap_piece.legal_moves.duplicate()
+
+	var mover_white = white_to_move
+	var ch = piece_char.replace("+", "")
+	ch = ch.to_upper() if mover_white else ch.to_lower()
+	var piece = make_piece_from_string(ch, chess_position)
+	piece.origin = ""  # not a run-army slot -- never "permanently lost"
+	black_hand.erase(piece.piece_type)
+	var sq = get_square(chess_position)
+	sq.has_piece = true
+	sq.piece_type = piece.piece_type
+	sq.white = piece.white
+	Globals.dprint("[necromancer] drops %s on %s (hand now %d)" % [Globals.give_piece_name_from_piece_type(piece.piece_type), chess_position, black_hand.size()])
+
+	var record = {
+		"drop": true,
+		"piece": piece,
+		"to_square": sq,
+		"to_position": chess_position,
+		"en_passant": check_en_passant(),
+		"legal_snapshot": legal_snapshot,
+		"checks_before": [white_checks, black_checks],
+		"checks_after": [white_checks, black_checks],
+	}
+	en_passant_square = ""
+	en_passant_pawn_location = ""
+	_flip_turn(mover_white)
+	moves.append(record)
+	_update_hand_label()
+	_finish_move("@", chess_position)  # prev != cur, so send_move() still hands off
+
+# Pawn-family pieces go into the hand as literal PAWN when the variant has one:
+# the engine only keeps literal PAWN drops off the back ranks, so a dropped
+# Short Pawn could otherwise land stuck on its own promotion rank.
+func _hand_type_for(piece_type):
+	var E = Globals.Piece_Type_ENUMs
+	if Globals.is_pawn_type(piece_type) and Globals._active_enum_to_char.has(E.PAWN):
+		return E.PAWN
+	return piece_type
+
+# Undo/redo for a drop record: the piece node is hidden/revived rather than
+# freed, since later records in the redo stack may still reference it.
+func _undo_drop(record):
+	var piece = record["piece"]
+	white_to_move = piece.white
+	var sq = record["to_square"]
+	sq.has_piece = false
+	sq.piece_type = Globals.Piece_Type_ENUMs.NONE
+	piece.dead = true
+	piece.global_position = Vector2(-200, -200)
+	black_hand.append(piece.piece_type)
+	# Restore exactly -- including "no en passant", or a double step being undone leaves a stale square.
+	en_passant_square = "" if "-" in record["en_passant"] else record["en_passant"]
+	pending_legal_snapshot = record["legal_snapshot"]
+	white_checks = record["checks_before"][0]
+	black_checks = record["checks_before"][1]
+	_update_hand_label()
+
+func _redo_drop(record):
+	var piece = record["piece"]
+	white_to_move = not piece.white
+	var sq = record["to_square"]
+	piece.dead = false
+	piece.chess_position = record["to_position"]
+	piece.global_position = sq.global_position + sq.get_node("CollisionShape2D").shape.extents
+	sq.has_piece = true
+	sq.piece_type = piece.piece_type
+	sq.white = piece.white
+	black_hand.erase(piece.piece_type)
+	en_passant_square = ""
+	white_checks = record["checks_after"][0]
+	black_checks = record["checks_after"][1]
+	_update_hand_label()
+
+# Small on-screen readout of what the Necromancer is holding.
+func _update_hand_label():
+	if not necromancer:
+		if _hand_label != null:
+			_hand_label.visible = false
+		return
+	if _hand_label == null:
+		var layer = CanvasLayer.new()
+		_hand_label = Label.new()
+		_hand_label.position = Vector2(16, 84)
+		_hand_label.add_theme_font_size_override("font_size", 20)
+		add_child(layer)
+		layer.add_child(_hand_label)
+	_hand_label.visible = true
+	var counts = {}
+	for t in black_hand:
+		var n = Globals.give_piece_name_from_piece_type(t).capitalize()
+		counts[n] = counts.get(n, 0) + 1
+	var parts = []
+	for n in counts:
+		parts.append(n if counts[n] == 1 else "%s x%d" % [n, counts[n]])
+	_hand_label.text = "Necromancer's hand: " + (", ".join(parts) if parts.size() > 0 else "(empty)")
 
 func _is_promotion_rank(pos, is_white):
 	var rank = int(pos.substr(1, pos.length() - 1))
@@ -1661,7 +2197,20 @@ func redo_individual_move():
 		return
 	var record = redo_moves.pop_back()
 	moves.append(record)
-	
+
+	if record.get("drop", false) or record.get("pass", false) or record.get("swap", false):
+		_redo_special(record)
+		redo_steps_remaining -= 1
+		if redo_steps_remaining > 0 and redo_moves.size() > 0:
+			call_deferred("redo_individual_move")
+		else:
+			call_deferred("undo_done")
+		return
+	if record.get("hand_added", []).size() > 0:
+		black_hand.append_array(record["hand_added"])
+		_update_hand_label()
+	if record.get("opening_bonus", false):
+		opening_book_moves -= 1
 
 	var redo_piece = record["piece"]
 	var previous_square = record["from_square"]
@@ -1760,8 +2309,9 @@ func undo():
 		# that was about to move before you pressed undo, just with the
 		# position rewound one round. 3 if the round being undone was a
 		# double move (its own 2 halves + the reply); 1 if you're mid-double.
-		if double_pending_piece != null:
+		if double_pending_piece != null or _bonus_turn_pending:
 			double_pending_piece = null
+			_bonus_turn_pending = false
 			undo_steps_remaining = 1
 		elif moves.size() >= 2 and moves[moves.size() - 2].get("double_role", "") == "second":
 			undo_steps_remaining = 3
@@ -1776,7 +2326,22 @@ func undo_individual_move():
 
 	var record = moves.pop_back()
 	redo_moves.append(record)
-	
+
+	if record.get("drop", false) or record.get("pass", false) or record.get("swap", false):
+		_undo_special(record)
+		undo_steps_remaining -= 1
+		if undo_steps_remaining > 0 and moves.size() > 0:
+			call_deferred("undo_individual_move")
+		else:
+			call_deferred("undo_finalize")
+		return
+	if record.get("opening_bonus", false):
+		opening_book_moves += 1
+		_bonus_turn_pending = false
+	for t in record.get("hand_added", []):
+		black_hand.erase(t)
+	if record.get("hand_added", []).size() > 0:
+		_update_hand_label()
 
 	var undo_piece = record["piece"]
 	# Un-making this move means it's this piece's colour's turn again. This was
@@ -1856,8 +2421,8 @@ func undo_individual_move():
 	undo_piece.chess_position = record["from_position"]
 	undo_piece.cooldown_until = record.get("cooldown_before", 0)  # un-move resets its timer
 
-	if "-" not in record["en_passant"]:
-		en_passant_square = record["en_passant"]
+	# Restore exactly -- including "no en passant", or a double step being undone leaves a stale square.
+	en_passant_square = "" if "-" in record["en_passant"] else record["en_passant"]
 	
 	# The last step's snapshot is the one undo_finalize applies. Stop after the
 	# requested number of plies (or early if the history runs out) — colour no
@@ -1881,6 +2446,7 @@ func undo_done():
 
 	for piece in get_tree().get_nodes_in_group("pieces"):
 		piece.legal_moves =  []
+	_clear_sanctuary_if_players_turn()
 
 	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	top_level.send_to_stockfish("eval")
@@ -1902,6 +2468,7 @@ func undo_finalize():
 			piece.legal_moves = pending_legal_snapshot[piece.chess_position].duplicate()
 		else:
 			piece.legal_moves = []
+	_clear_sanctuary_if_players_turn()
 	# Keep the engine's position in sync for the next move / evaluation.
 	top_level.send_to_stockfish("position fen " + generate_fen_string())
 	unfreeze_buttons()
@@ -1909,6 +2476,15 @@ func undo_finalize():
 		unfreeze_white_pieces()
 	else:
 		unfreeze_black_pieces()
+
+# Sanctuary only ever covers an ENEMY turn -- don't let undo/redo leave one on.
+func _clear_sanctuary_if_players_turn():
+	if white_to_move != player_white:
+		return
+	for p in get_tree().get_nodes_in_group("pieces"):
+		if p.sanctuary_active:
+			p.sanctuary_active = false
+			p.queue_redraw()
 
 func undo_castle(rook_position, old_rook_position):
 	var rook = get_piece(old_rook_position)
@@ -2044,11 +2620,19 @@ func generate_fen_string():
 			elif j == width - 1 and i == length - 1:
 				blank_space_counter += 1
 				fen_string += str(blank_space_counter)
-				
+
 			else:
 				blank_space_counter += 1
-		
-		
+
+
+	# Necromancer: pieces in hand go right after the board, "[...]" (lower case =
+	# Black's). Only Black's hand is ever sent -- White never gets to drop.
+	if necromancer:
+		var hand = ""
+		for t in black_hand:
+			hand += Globals.get_fen_string_from_enum(t, false)
+		fen_string += "[" + hand + "]"
+
 	if white_to_move:
 		fen_string += " w"
 	else:
@@ -2114,7 +2698,9 @@ func check_half_moves():
 	return "0"
 	
 func check_full_moves():
-	return str(black_move_counter)
+	# undo()/redo() adjust this but normal moves never advance it, so it can
+	# drift below 1 -- a FEN full-move number of 0 or less is malformed.
+	return str(max(1, black_move_counter))
 	
 	
 func freeze_black_pieces():

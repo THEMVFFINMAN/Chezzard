@@ -209,6 +209,7 @@ func _configure_and_start(m, vs_computer):
 		pl = m["placements"]
 	else:
 		pl = VariantBuilder.layout_to_placements(m.get("layout", GameModes.default_layout()), board.width)
+	var defectors = _apply_traitors(pl)
 	var enum_to_char
 	if m.get("generated", false):
 		# Build a fresh variants.ini from the roster (explicit, else just the pieces
@@ -228,7 +229,60 @@ func _configure_and_start(m, vs_computer):
 	board.test_materials = VariantBuilder.placements_materials(pl)
 	board.test_modifiers = VariantBuilder.placements_modifiers(pl)
 	board.build_board()
+	if not defectors.is_empty():
+		board.flash_message("Traitor! Your %s defected to the enemy" % ", ".join(defectors))
 	_init_engine()
+
+
+# Traitor modifier: each tagged (non-royal) White piece rolls once per battle
+# to start on the enemy side instead -- its mirrored square if that's free,
+# else the nearest free square on the enemy's half. Battle-only: this edits
+# the placement list, never RunState.army, so it's back in your army next
+# floor. Returns the names of the pieces that defected.
+func _apply_traitors(pl):
+	var occupied = {}
+	for p in pl:
+		occupied[p["sq"]] = true
+	var defected = []
+	for p in pl:
+		if not p.get("white", true) or "traitor" not in p.get("modifiers", []):
+			continue
+		if Globals.PIECE_REGISTRY.get(p["piece"], {}).get("royal", false):
+			continue
+		if randf() >= Globals.MODIFIERS["traitor"]["chance"]:
+			continue
+		var target = _traitor_square(p, occupied)
+		if target == "":
+			continue
+		occupied.erase(p["sq"])
+		occupied[target] = true
+		Globals.dprint("[traitor] %s at %s defects to %s" % [Globals.give_piece_name_from_piece_type(p["piece"]), p["sq"], target])
+		p["sq"] = target
+		p["white"] = false
+		p.erase("modifiers")
+		defected.append(Globals.give_piece_name_from_piece_type(p["piece"]).capitalize())
+	return defected
+
+
+func _traitor_square(p, occupied):
+	var file = p["sq"].unicode_at(0) - "a".unicode_at(0)
+	var rank = int(p["sq"].substr(1))
+	var mirror_rank = board.length + 1 - rank
+	var is_pawn = Globals.is_pawn_type(p["piece"])
+	var best = ""
+	var best_d = 999
+	for r in range(board.length, floori(board.length / 2.0), -1):
+		if is_pawn and (r == 1 or r == board.length):
+			continue  # a pawn can't start on either back rank
+		for f in board.width:
+			var sq = "%s%d" % [String.chr(97 + f), r]
+			if occupied.has(sq):
+				continue
+			var d = max(abs(f - file), abs(r - mirror_rank))
+			if d < best_d:
+				best_d = d
+				best = sq
+	return best
 
 
 func _notification(what):
@@ -250,6 +304,8 @@ func _init_engine():
 	# the engine will actually accept, 500-2850).
 	if RunState.in_run:
 		var target_elo = RunState.floor_elo(RunState.floor)
+		if RunState.has_relic("sleeping_draught"):
+			target_elo -= 100
 		var uci_elo = RunState.elo_to_uci_elo(target_elo)
 		send_to_stockfish("setoption name UCI_LimitStrength value true")
 		send_to_stockfish("setoption name UCI_Elo value " + str(uci_elo))
@@ -333,7 +389,12 @@ func _on_engine_line(line: String) -> void:
 			thread_timer.start()
 			await thread_timer.timeout
 
-			var computer_move = board.get_array_of_individual_moves_from_fen_string(line.split(" ")[1])
+			# Necromancer drop, e.g. "Q@d4": a piece from the hand, not a move.
+			var best = line.split(" ")[1]
+			if "@" in best:
+				board.call_deferred("drop_piece", best.split("@")[0], best.split("@")[1])
+				return
+			var computer_move = board.get_array_of_individual_moves_from_fen_string(best)
 			board.call_deferred("move", computer_move[0], computer_move[1])
 		return
 

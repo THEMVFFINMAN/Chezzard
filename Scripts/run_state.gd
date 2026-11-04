@@ -14,6 +14,8 @@ var army := {}             # persistent white layout { rank: [cells] }
 var relics := []           # owned relic ids (run-wide passives, see Globals.RELICS)
 var test_mode := false     # debug: shop shows every card/relic, no rolling/filtering, repeat buys allowed
 var test_hotseat := false  # debug: next battle is human-vs-human instead of vs the AI
+var veteran_kills := {}    # army origin square -> captures made by a "veteran" piece this run
+var dice_used_floor := -1  # Loaded Dice: the floor whose shop already used its free reroll
 
 # --- AI difficulty (Elo) ---
 # A player preference, not run state -- deliberately NOT reset by start_run()/
@@ -32,6 +34,8 @@ func start_run():
 	gold = 0
 	lost_origins = []
 	relics = []
+	veteran_kills = {}
+	dice_used_floor = -1
 	army = _default_army()
 	gold_changed.emit(gold)
 
@@ -52,6 +56,8 @@ func start_test_shop():
 	gold = 99999
 	lost_origins = []
 	relics = []
+	veteran_kills = {}
+	dice_used_floor = -1
 	army = _default_army()
 	gold_changed.emit(gold)
 
@@ -60,6 +66,18 @@ func advance():
 	floor += 1
 	if has_relic("war_chest"):
 		add_gold(15, "war_chest")
+	# Field Medic: advance() only runs after a won battle, so this is "after
+	# each win" -- one random lost slot comes back as a Short Pawn.
+	if has_relic("field_medic") and not lost_origins.is_empty():
+		var slot = lost_slots()[randi() % lost_origins.size()]
+		add_pawn(slot["rank"], slot["file"])
+		print("[run] Field Medic restored the slot at %s" % slot["origin"])
+
+
+# Veteran modifier: a capture made by the piece from this army slot.
+func add_veteran_kill(origin):
+	if origin != "":
+		veteran_kills[origin] = veteran_kills.get(origin, 0) + 1
 
 
 func has_relic(id):
@@ -95,6 +113,7 @@ func lose_piece(origin):
 		print("[run] Insurance Policy saved the piece from %s (relic consumed)" % origin)
 		return
 	lost_origins.append(origin)
+	veteran_kills.erase(origin)  # whatever refills this slot later starts fresh
 	print("[run] permanently lost the piece from %s" % origin)
 
 
@@ -191,6 +210,8 @@ func _apply_relic_battle_effects(cfg):
 		cfg["draws_favor_white"] = true
 	if has_relic("confusion_tactics"):
 		cfg["flip_black_king_queen"] = true
+	if has_relic("opening_book"):
+		cfg["opening_book"] = 1  # one bonus move = 2 moves before the enemy's first
 
 
 # --- Opponent effects (Globals.EFFECTS) ---
@@ -202,6 +223,9 @@ func _apply_relic_battle_effects(cfg):
 # manually for now, e.g. RunState.apply_effect(cfg, "twin_crown") right after
 # current_battle()/test_battle() builds cfg and before it's handed to the board.
 func apply_effect(cfg, effect_id):
+	if has_relic("cursebreaker") and randf() < 0.5:
+		print("[run] Cursebreaker: %s fizzled" % effect_id)
+		return
 	match effect_id:
 		"twin_crown":
 			_apply_twin_crown_effect(cfg)

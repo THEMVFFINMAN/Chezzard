@@ -312,7 +312,43 @@ const MODIFIERS = {
 	# capture when one's actually on the table (board.gd's apply_modifier_filters
 	# keeps the full normal move list on a turn where nothing's capturable).
 	"berserker": {"desc": "must capture if a capture is available, otherwise moves normally", "berserker": true},
+	# --- Upgrades (shop-offered) ---
+	# Uncapturable while standing next to one of its own royals -- reuses the
+	# iron "*" wall-square trick (board._is_wall_piece), so while on duty it
+	# also can't capture (wall moves are game-side, empty squares only). Never
+	# goes on duty while it's attacking the enemy royal (the engine can't see a
+	# wall's check).
+	"bodyguard": {"desc": "uncapturable while next to your king (but can't capture while guarding)", "bodyguard": true},
+	# Zombie's respawn without the demotion: the first death each battle, it
+	# comes straight back as the same piece at (or near) its starting square,
+	# minus this tag. The run army keeps the tag, so it re-arms next battle.
+	"phoenix": {"desc": "the first time it dies each battle, it comes back on its starting square", "phoenix": true},
+	"inspire": {"desc": "friendly pieces next to it earn double gold for captures", "inspire": true},
+	# Drag it onto a friendly piece to trade places -- once per battle, not while
+	# in check, never with a royal or wall piece.
+	"swap": {"desc": "once per battle, swap places with any friendly piece instead of moving", "swap": true},
+	# Kill count lives in RunState.veteran_kills (keyed by army slot), so it
+	# carries across the whole run.
+	"veteran": {"desc": "+1 gold per capture for every capture it has made this run", "veteran": true},
+	# Automatic, once per battle: the first enemy turn it starts under attack,
+	# it becomes an uncapturable wall square for that one turn.
+	"sanctuary": {"desc": "once per battle, the first time it's attacked it can't be captured that turn", "sanctuary": true},
+	# --- Downgrades (not shop-offered) ---
+	"cursed_gold": {"desc": "earns no gold for captures", "cursed_gold": true},
+	# Rolled once at battle setup (board_container._apply_traitors): defects to
+	# the enemy for that battle only, then returns to your army afterward.
+	"traitor": {"desc": "small chance each battle to start on the enemy side", "chance": 0.15},
+	# Under attack at the start of 2 of your turns in a row -> it flees the
+	# battle (gone for this battle only, not lost from the run).
+	"wimp": {"desc": "flees the battle if it starts 2 of your turns in a row under attack", "flee_after": 2},
+	# Rust rolls when you try to move it: the move fails and the whole turn is
+	# lost. Never rolls while you're in check (a lost turn there would be illegal).
+	"rusted": {"desc": "25% chance each move that it seizes up and the turn is lost", "fail_chance": 0.25},
 }
+
+# Modifiers that can never go on a royal piece -- each one would make a royal
+# respawn, vanish, change sides, or turn into an engine-invisible wall square.
+const NON_ROYAL_MODIFIERS = ["zombie", "phoenix", "bodyguard", "swap", "sanctuary", "traitor", "wimp"]
 
 # --- Zombie demotion ladder ---
 # What a captured "zombie" piece respawns as (see board.gd's
@@ -435,6 +471,21 @@ const RELICS = {
 	# above -- this isn't a @export board.gd flag GameModes.apply_config knows about,
 	# it's board_container's own per-battle setup concern.
 	"mulligan":            {"name": "Mulligan",             "desc": "+1 Undo per battle (vs. the computer)", "cost": 40},
+	# Shop-side: one free reroll per floor (shop.gd, RunState.dice_used_floor).
+	"loaded_dice":         {"name": "Loaded Dice",          "desc": "One free shop reroll each floor",  "cost": 45},
+	# Win-reward relics, read in board._award_win_once().
+	"crown_jewels":        {"name": "Crown Jewels",         "desc": "+25 gold for every royal piece you finish a won battle with", "cost": 55},
+	"executioner":         {"name": "Executioner",          "desc": "Checkmating with a pawn pays triple win gold", "cost": 40},
+	# Read in RunState.advance() (runs once per won battle).
+	"field_medic":         {"name": "Field Medic",          "desc": "After each win, one lost piece slot comes back as a Short Pawn", "cost": 65},
+	# board.opening_book_moves, via RunState._apply_relic_battle_effects().
+	"opening_book":        {"name": "Opening Book",         "desc": "You make 2 moves before the enemy's first turn", "cost": 75},
+	# Read in RunState.apply_effect() -- only matters once floors roll effects.
+	"cursebreaker":        {"name": "Cursebreaker",         "desc": "Each floor curse has a 50% chance to fizzle", "cost": 60},
+	# board._award_capture(); the count is per battle (board._gravedigger_count).
+	"gravedigger":         {"name": "Gravedigger",          "desc": "Each capture pays +1 more gold than the last (resets each floor)", "cost": 55},
+	# board_container._init_engine(), subtracted before the UCI_Elo clamp.
+	"sleeping_draught":    {"name": "Sleeping Draught",     "desc": "The computer plays 100 Elo weaker", "cost": 70},
 }
 
 

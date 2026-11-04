@@ -307,6 +307,19 @@ static func _build_modes():
 				},
 			},
 		},
+		# The Necromancer: one-sided Crazyhouse. Captures go to the capturer's
+		# hand (engine-native capturesToHand), but only Black may drop:
+		# dropRegionWhite = "-" parses to an empty bitboard (parser.cpp's
+		# Bitboard set()), and board.gd only ever sends Black's hand in the FEN.
+		# Standard armies (default layout) on both sides. Captured promoted
+		# pieces go back to hand as what they are now, not as pawns (no "~"
+		# promoted-piece tracking).
+		"necromancer": {
+			"name": "The Necromancer",
+			"generated": true,
+			"necromancer": true,
+			"rules": ["pieceDrops = true", "capturesToHand = true", "dropRegionWhite = -"],
+		},
 		# Board-size test modes: still 8 files wide, just a taller/shorter
 		# board. White's back rank always stays at 1; black's back rank/pawn
 		# rank are repositioned to match the new length (board.length, not a
@@ -476,6 +489,8 @@ static func apply_config(board, m):
 	board.blast_on_capture = m.get("blast_on_capture", false)
 	board.brittle_curse = m.get("brittle_curse", false)
 	board.petrified_mode = m.get("petrified_mode", false)
+	board.necromancer = m.get("necromancer", false)
+	board.opening_book_moves = m.get("opening_book", 0)
 	if m.has("disable_white_castling"): board.disable_white_castling = m["disable_white_castling"]
 	if m.has("disable_black_castling"): board.disable_black_castling = m["disable_black_castling"]
 	if m.has("flip_white_king_queen"): board.flip_white_king_queen = m["flip_white_king_queen"]

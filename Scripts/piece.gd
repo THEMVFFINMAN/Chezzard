@@ -49,6 +49,12 @@ var origin = ""
 # there's real iconography for this.
 var brittle_stage = 0
 
+# Per-battle modifier state, set/cleared by board.gd.
+var swap_used = false          # Swap: its one swap this battle is spent
+var sanctuary_used = false     # Sanctuary: its one protected turn this battle is spent
+var sanctuary_active = false   # Sanctuary: uncapturable for the current enemy turn
+var wimp_count = 0             # Wimp: consecutive own turns started under attack
+
 func delete_self():
 	dead_position = global_position
 	dead = true
@@ -185,6 +191,31 @@ func _draw():
 	# there's real icon art.
 	if has_modifier("berserker"):
 		_draw_badge(Vector2(12, 12), "!")
+	# New upgrade/downgrade badges -- same placeholder style as the ones above.
+	if has_modifier("bodyguard"):
+		_draw_badge(Vector2(12, -12), "G")
+	if has_modifier("phoenix"):
+		_draw_badge(Vector2(12, -12), "R")
+	if has_modifier("inspire"):
+		_draw_badge(Vector2(-12, 12), "I")
+	if has_modifier("swap") and not swap_used:
+		_draw_badge(Vector2(-12, 12), "T")
+	if has_modifier("veteran"):
+		_draw_badge(Vector2(12, 12), str(RunState.veteran_kills.get(origin, 0)))
+	if has_modifier("sanctuary") and not sanctuary_used:
+		_draw_badge(Vector2(-12, 12), "H")
+	if has_modifier("cursed_gold"):
+		_draw_badge(Vector2(12, 12), "$")
+	if has_modifier("rusted"):
+		_draw_badge(Vector2(-12, 12), "r")
+	if has_modifier("wimp"):
+		_draw_badge(Vector2(12, 12), "w")
+	# Sanctuary active this enemy turn: a cyan ring. Wimp one scare from
+	# fleeing: a pale blue ring.
+	if sanctuary_active:
+		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 32, Color(0.2, 0.9, 1, 1), 3.0)
+	elif wimp_count >= 1:
+		draw_arc(Vector2.ZERO, 15.0, 0.0, TAU, 32, Color(0.6, 0.75, 1, 1), 2.0)
 	# Brittle curse: a warning ring, amber (1 turn left) then red and thicker
 	# (last chance before it shatters). Placeholder until there's real art.
 	if brittle_stage == 1:
