@@ -167,8 +167,8 @@ func current_battle():
 		"layout": {"white": _army_layout(), "black": f["enemy"]},
 		"rules": f.get("rules", []),
 		"royal_count": f.get("royal_count", 1),
-		# apply_config() reads the per-side keys, not a single "head_of_snake" --
-		# the Wizard floor (the only place this is set) wants it on both sides.
+		# apply_config() reads the per-side keys, not a single "head_of_snake";
+		# a floor setting it gets it on both sides.
 		"head_of_snake_white": f.get("head_of_snake", false),
 		"head_of_snake_black": f.get("head_of_snake", false),
 		"unroyal": f.get("unroyal", false),
@@ -356,13 +356,13 @@ func _default_army():
 	}
 
 
-# Escalating enemy per floor; floor 10 is the Wizard (a head-of-snake boss).
+# Escalating enemy per floor; floor 10 is the Wizard (placeholder -- will
+# eventually rotate through rulesets at random).
 func _floor_config(f):
 	var E = Globals.Piece_Type_ENUMs
 	var cfg := {"name": "Floor %d" % f}
 	if f >= FLOOR_COUNT:
 		cfg["name"] = "The Wizard"
-		cfg["head_of_snake"] = true
 		cfg["enemy"] = {8: [E.ROOK, E.KNIGHT, E.ARCHBISHOP, E.QUEEN, E.KING, E.ARCHBISHOP, E.KNIGHT, E.ROOK], 7: E.PAWN}
 	elif f >= 7:
 		cfg["enemy"] = {8: [E.ROOK, E.KNIGHT, E.BISHOP, E.QUEEN, E.KING, E.BISHOP, E.KNIGHT, E.ROOK], 7: E.PAWN}
